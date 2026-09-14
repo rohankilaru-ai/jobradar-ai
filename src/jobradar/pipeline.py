@@ -69,16 +69,22 @@ def run_scan(
             if stored.is_closed:
                 continue
             if is_new and within_notify_window(stored):
-                if notifier.notify(stored):
+                from jobradar import notion as notion_mod
+                from jobradar.notify import should_send_alerts
+
+                should_alert = should_send_alerts(stored)
+                notion_status = (
+                    notion_mod.STATUS_SEEN if should_alert else notion_mod.STATUS_BACKLOG
+                )
+                if notifier.notify(stored, silent=not should_alert):
                     stats.notified += 1
+                if should_alert:
                     try:
                         director_enqueue(stored, db=db)
                     except Exception as exc:
                         log.warning("director enqueue failed: %s", exc)
-                    try:
-                        from jobradar import notion as notion_mod
-
-                        notion_mod.upsert_job(stored, db=db, status="Seen")
-                    except Exception as exc:
-                        log.warning("notion upsert failed: %s", exc)
+                try:
+                    notion_mod.upsert_job(stored, db=db, status=notion_status)
+                except Exception as exc:
+                    log.warning("notion upsert failed: %s", exc)
     return stats
