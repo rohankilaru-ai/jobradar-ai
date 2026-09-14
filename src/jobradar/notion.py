@@ -145,9 +145,9 @@ def test_connection() -> str:
     return "ok"
 
 
-def backfill(db: Database, *, priority_only: bool = True, limit: int | None = None) -> int:
+def backfill(db: Database, *, priority_only: bool = True, limit: int | None = None, status: str = STATUS_SEEN) -> int:
     n = 0
     for job in db.list_jobs(priority_only=priority_only, limit=limit):
-        if upsert_job(job, db=db):
+        if upsert_job(job, db=db, status=status):
             n += 1
     return n

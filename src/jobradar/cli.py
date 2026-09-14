@@ -134,7 +134,7 @@ def cmd_notion_backfill(args: argparse.Namespace) -> int:
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     db = Database()
-    n = notion_mod.backfill(db, priority_only=args.priority_only, limit=args.limit)
+    n = notion_mod.backfill(db, priority_only=args.priority_only, limit=args.limit, status=args.status)
     print(f"notion upserted={n}")
     return 0
 
@@ -242,6 +242,11 @@ def build_parser() -> argparse.ArgumentParser:
     nb.add_argument("--priority-only", action="store_true", default=True)
     nb.add_argument("--all", dest="priority_only", action="store_false")
     nb.add_argument("--limit", type=int, default=None)
+    nb.add_argument(
+        "--status",
+        default="Backlog",
+        help="Notion Status for backfilled rows (default Backlog; no Discord)",
+    )
     nb.set_defaults(func=cmd_notion_backfill)
 
     ga = sub.add_parser("gmail-auth", help="Browser OAuth for Gmail")
