@@ -541,14 +541,18 @@ def send_discord(text: str, *, tier: str = "other") -> str:
     return "ok"
 
 
-def _ntfy_header_value(value: str, max_len: int = 200) -> str:
-    """Encode ntfy header values as ASCII (RFC 2047) so em-dashes etc. do not break."""
-    value = (value or "")[:max_len]
+def _ntfy_header_value(value: str, max_len: int = 120) -> str:
+    """ASCII-safe ntfy header (no CR/LF). Prefer plain ASCII; else single-line RFC 2047."""
+    value = (value or "").replace("\N{EM DASH}", "-").replace("\N{EN DASH}", "-")
+    value = value.replace("—", "-").replace("–", "-")
+    value = re.sub(r"[\r\n]+", " ", value).strip()[:max_len]
     try:
         value.encode("ascii")
         return value
     except UnicodeEncodeError:
-        return Header(value, "utf-8").encode()
+        # email.header.Header may wrap with newlines; HTTP headers cannot contain them.
+        encoded = Header(value, "utf-8", maxlinelen=max_len).encode()
+        return re.sub(r"[\r\n]+", " ", encoded).strip()
 
 
 def send_ntfy(text: str, *, priority: bool = False, title: str = "JobRadar") -> str:
