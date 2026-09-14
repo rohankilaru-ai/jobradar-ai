@@ -479,6 +479,10 @@ def telegram_configured() -> bool:
 
 
 def send_discord(text: str) -> str:
+    # Safety: Never send to live Discord during pytest (even if DISCORD_WEBHOOK_URL is set)
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        log.debug("send_discord: blocked (PYTEST_CURRENT_TEST is set)")
+        return "skipped"
     url = (os.environ.get("DISCORD_WEBHOOK_URL") or "").strip()
     if not url:
         return "skipped"
@@ -500,6 +504,10 @@ def _ntfy_header_value(value: str, max_len: int = 200) -> str:
 
 def send_ntfy(text: str, *, priority: bool = False, title: str = "JobRadar") -> str:
     """Free phone push via ntfy.sh (or self-hosted NTFY_SERVER)."""
+    # Safety: Never send to live ntfy during pytest (even if NTFY_TOPIC is set)
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        log.debug("send_ntfy: blocked (PYTEST_CURRENT_TEST is set)")
+        return "skipped"
     topic = (os.environ.get("NTFY_TOPIC") or "").strip()
     if not topic:
         return "skipped"
@@ -521,6 +529,10 @@ def send_ntfy(text: str, *, priority: bool = False, title: str = "JobRadar") -> 
 
 def send_telegram(text: str) -> str:
     """Free Telegram bot message (unlimited enough for personal internship alerts)."""
+    # Safety: Never send to live Telegram during pytest (even if TELEGRAM_BOT_TOKEN is set)
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        log.debug("send_telegram: blocked (PYTEST_CURRENT_TEST is set)")
+        return "skipped"
     token = (os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip()
     chat_id = (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
     if not token or not chat_id:
