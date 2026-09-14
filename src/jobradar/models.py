@@ -7,7 +7,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 
 _WS = re.compile(r"\s+")
@@ -102,9 +102,73 @@ def is_bad_url(url: str) -> bool:
     return False
 
 
+# Common tracking/analytics query parameters to strip for URL normalization
+_TRACKING_PARAMS = {
+    # Google Analytics
+    "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_id",
+    # Referral tracking
+    "ref", "referrer", "source",
+    # Click tracking
+    "fbclid", "gclid", "msclkid", "dclid", "gbraid", "wbraid",
+    # Email/campaign tracking
+    "mc_cid", "mc_eid", "_hsenc", "_hsmi",
+    # Social media
+    "igshid", "twclid",
+    # Other common trackers
+    "mtm_campaign", "mtm_source", "mtm_medium",
+}
+
+
+def normalize_url(url: str) -> str:
+    """
+    Normalize URL for stable identity matching by:
+    - Stripping tracking/analytics query parameters (utm_*, ref, fbclid, etc.)
+    - Removing fragment identifiers (#)
+    - Removing trailing slashes
+    - Sorting remaining query parameters for consistency
+    
+    This ensures the same job posting with different tracking parameters
+    is recognized as the same job.
+    """
+    url = (url or "").strip()
+    if not url:
+        return ""
+    
+    try:
+        parsed = urlparse(url)
+        
+        # Parse and filter query parameters
+        query_params = parse_qs(parsed.query, keep_blank_values=True)
+        filtered_params = {
+            k: v for k, v in query_params.items()
+            if k.lower() not in _TRACKING_PARAMS
+        }
+        
+        # Sort parameters for consistency
+        sorted_query = urlencode(sorted(filtered_params.items()), doseq=True)
+        
+        # Remove trailing slash from path
+        path = parsed.path.rstrip("/") if parsed.path != "/" else parsed.path
+        
+        # Reconstruct URL without fragment
+        normalized = urlunparse((
+            parsed.scheme,
+            parsed.netloc,
+            path,
+            parsed.params,
+            sorted_query,
+            "",  # Remove fragment
+        ))
+        
+        return normalized
+    except Exception:
+        # If parsing fails, return original URL
+        return url
+
+
 def canonical_key(company: str, title: str, location: str, url: str = "") -> str:
     """Stable unique key. Prefer URL hash when present; else company|title|location."""
-    url_n = (url or "").strip()
+    url_n = normalize_url(url)
     if url_n:
         digest = hashlib.sha256(url_n.encode("utf-8")).hexdigest()[:16]
         return f"url:{digest}"
