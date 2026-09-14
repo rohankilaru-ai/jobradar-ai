@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-09-14T00:00:00Z",
+  "source": "dreamwork",
+  "list": "summer-2027",
+  "count": 2,
+  "listings": [
+    {
+      "id": "1",
+      "company": "Databricks",
+      "title": "Data Engineering Intern",
+      "location": "SF",
+      "url": "https://example.com/dbx",
+      "postedAt": "2026-09-12T00:00:00Z",
+      "aiRoleKind": "non_ai"
+    },
+    {
+      "id": "2",
+      "company": "Acme",
+      "title": "Tax Analyst Intern",
+      "location": "NY",
+      "url": "https://example.com/tax",
+      "postedAt": "2026-09-12T00:00:00Z",
+      "aiRoleKind": "non_ai"
+    }
+  ]
+}

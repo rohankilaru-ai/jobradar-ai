@@ -1,0 +1,17 @@
+{
+  "updatedAt": "2026-09-14T00:00:00Z",
+  "jobs": [
+    {
+      "id": "a",
+      "company": "Stripe",
+      "title": "Software Engineer Intern",
+      "location": "South San Francisco, CA",
+      "url": "https://applyguy.ai/x",
+      "listingUrl": "https://stripe.com/jobs/1",
+      "posted": "2026-09-13",
+      "season": "Summer 2027",
+      "category": "Software Engineering",
+      "age": "1d"
+    }
+  ]
+}

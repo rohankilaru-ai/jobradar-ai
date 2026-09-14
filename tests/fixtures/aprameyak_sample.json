@@ -1,0 +1,26 @@
+[
+  {
+    "company": "OpenAI",
+    "role": "Software Engineer Intern",
+    "location": "San Francisco, CA",
+    "url": "https://example.com/openai",
+    "season": "Summer",
+    "type": "internship",
+    "date_added": "2026-09-10",
+    "education": "Undergrad",
+    "sponsorship": "Unknown",
+    "citizenship": "No"
+  },
+  {
+    "company": "Nursing Co",
+    "role": "Nursing Intern",
+    "location": "Remote",
+    "url": "https://example.com/nurse",
+    "season": "Summer",
+    "type": "internship",
+    "date_added": "2026-09-01",
+    "education": "Undergrad",
+    "sponsorship": "Unknown",
+    "citizenship": "No"
+  }
+]
