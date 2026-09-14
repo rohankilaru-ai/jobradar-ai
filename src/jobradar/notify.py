@@ -155,6 +155,175 @@ def sanitize_job_url(url: str) -> str:
     return url.strip()
 
 
+def is_specific_job_url(url: str | None) -> bool:
+    """
+    Check if URL points to a specific job posting (not a generic career search/listing page).
+    
+    Returns False (block) for:
+    - dreamworkhq.com (aggregator, not employer ATS)
+    - Generic career homepages: /careers, /jobs (without job identifier)
+    - Search/listing pages: /careers/search, /jobs/results, /careers?query=, etc.
+    
+    Returns True (allow) for:
+    - Known ATS platforms with job identifiers (Greenhouse, Lever, Ashby, Workday, iCIMS, etc.)
+    - Company pages with job identifiers: gh_jid=, job_id=, /position/, /job/ID
+    """
+    if not url:
+        return False
+    
+    url = sanitize_job_url(url)
+    if not url or not url.startswith("http"):
+        return False
+    
+    url_lower = url.lower()
+    parsed = urlparse(url_lower)
+    domain = parsed.netloc.lstrip("www.")
+    path = parsed.path.rstrip("/")
+    query = parsed.query
+    
+    # Block: dreamworkhq.com is an aggregator, not an employer ATS
+    if "dreamworkhq.com" in domain:
+        return False
+    
+    # Allow: Known ATS platforms with job-specific paths
+    # Greenhouse: /jobs/ID or gh_jid parameter
+    if "greenhouse.io" in domain or "gh_jid=" in query:
+        if "/jobs/" in path or "gh_jid=" in query:
+            return True
+    
+    # Lever: /company/slug
+    if "lever.co" in domain and path.count("/") >= 2:
+        return True
+    
+    # Ashby: /company/uuid
+    if "ashbyhq.com" in domain and path.count("/") >= 2:
+        return True
+    
+    # Workday: /job/ in path
+    if "workday" in domain and "/job" in path:
+        return True
+    
+    # iCIMS: /job in path or job= in query
+    if "icims.com" in domain:
+        if "/job" in path or "job=" in query:
+            return True
+    
+    # Amazon Jobs: /jobs/ with identifier
+    if "amazon.jobs" in domain and "/jobs/" in path:
+        return True
+    
+    # Taleo: job= or job ID parameter
+    if "taleo.net" in domain and ("job=" in query or "/jobdetail" in path):
+        return True
+    
+    # SmartRecruiters: /jobs/ or job ID in path
+    if "smartrecruiters.com" in domain and path.count("/") >= 2:
+        return True
+    
+    # JobVite, BambooHR, Breezy, Fountain: job identifier in path
+    if any(ats in domain for ats in ("jobvite.com", "bamboohr.com", "breezy.hr", "fountain.com")):
+        if path.count("/") >= 2:
+            return True
+    
+    # Generic job identifiers in query parameters
+    job_params = ("gh_jid=", "job_id=", "jobid=", "id=", "job=", "position=", "requisition")
+    if any(param in query for param in job_params):
+        # Make sure it's not just a search query
+        if "query=" not in query and "search=" not in query and "q=" not in query:
+            return True
+    
+    # /position/ path (e.g., Jane Street)
+    if "/position/" in path:
+        return True
+    
+    # Block: Generic career search/listing keywords in path
+    blocking_keywords = [
+        "search", "results", "openings", "listings", "opportunities",
+        "search-results", "job-search", "career-search"
+    ]
+    path_segments = [seg for seg in path.split("/") if seg]
+    
+    # Check if blocking keywords appear in path
+    for i, segment in enumerate(path_segments):
+        if segment in blocking_keywords:
+            # Check if there's an ID-like segment after this keyword
+            # e.g., /jobs/results/123456 should be allowed
+            if i + 1 < len(path_segments):
+                next_segment = path_segments[i + 1]
+                # If next segment looks like an ID (all digits or long alphanumeric), allow it
+                if next_segment.isdigit() or (len(next_segment) > 6 and any(c.isdigit() for c in next_segment)):
+                    # Has ID after blocking keyword - likely specific job
+                    continue
+            # No ID after blocking keyword - generic page
+            return False
+    
+    # /job/ or /jobs/ followed by identifier (not just listing pages)
+    if "/job/" in path or "/jobs/" in path:
+        # Check for blocking patterns like /jobs/results, /jobs/search
+        # But allow them if followed by an ID (e.g., /jobs/results/123456)
+        blocking_patterns = [
+            "/jobs/results", "/jobs/search", "/jobs/openings", "/jobs/listings",
+            "/job/results", "/job/search",
+            "/careers/search", "/careers/results", "/careers/openings",
+        ]
+        
+        has_blocking_pattern = False
+        for pattern in blocking_patterns:
+            if pattern in path:
+                has_blocking_pattern = True
+                # Check if there's an ID-like segment after this pattern
+                after = path.split(pattern, 1)[1].lstrip("/")
+                if after:
+                    first_segment_after = after.split("/")[0]
+                    # If it's a numeric ID or long alphanumeric, it's likely a specific job
+                    if first_segment_after.isdigit() or (len(first_segment_after) > 6 and any(c.isdigit() for c in first_segment_after)):
+                        has_blocking_pattern = False  # Don't block this one
+                        break
+                # If we get here, pattern is in path but no ID after - will block below
+                break
+        
+        if has_blocking_pattern:
+            return False
+        
+        # If /job/ or /jobs/ has more path segments (likely specific posting)
+        # e.g., /jobs/123456 or /job/software-engineer
+        parts = [p for p in path.split("/") if p]
+        if "/job" in path:
+            job_index = next((i for i, p in enumerate(parts) if "job" in p), -1)
+            if job_index >= 0 and job_index + 1 < len(parts):
+                # Has something after /job or /jobs
+                next_segment = parts[job_index + 1]
+                # Not a generic listing page
+                if next_segment not in ("results", "search", "openings", "listings"):
+                    return True
+    
+    # Block: Generic career homepages
+    blocking_paths = [
+        "/careers", "/careers/", 
+        "/jobs", "/jobs/",
+        "/career", "/career/",
+        "/work-with-us", "/join-us",
+        "/careers/search", "/jobs/search",
+        "/careers/openings", "/jobs/openings",
+        "/careers/job-search", "/job-search",
+        "/job-listings", "/job-opportunities",
+    ]
+    
+    # Exact path match for blocking
+    if path in blocking_paths:
+        return False
+    
+    # Block if query contains search-related parameters without job identifiers
+    if query:
+        search_params = ("query=", "search=", "q=", "keyword=")
+        if any(param in query for param in search_params):
+            # It's a search page
+            return False
+    
+    # Default: allow (better to have false positives than miss real jobs)
+    return True
+
+
 def strip_html(text: str) -> str:
     """Remove HTML tags from text."""
     return _HTML_TAG.sub("", text or "").strip()
@@ -226,6 +395,10 @@ def job_notify_block_reason(job: JobRecord) -> str | None:
     url_lower = url.lower()
     if "example.com" in url_lower or "example.org" in url_lower:
         return "test fixture URL (example.com/org)"
+    
+    # Check if URL is a specific job posting (not generic career page)
+    if not is_specific_job_url(url):
+        return f"generic career page, not a specific job posting: {url[:80]}"
     
     # Check domain/company mismatch
     if not domain_matches_company(job.company, url):

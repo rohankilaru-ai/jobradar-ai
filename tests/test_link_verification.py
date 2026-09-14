@@ -167,7 +167,7 @@ def test_job_notify_block_reason_valid_job(monkeypatch):
         job = JobRecord(
             company="Valid Corp",
             title="ML Engineer Intern",
-            url="https://valid-site.com/careers",
+            url="https://valid-site.com/careers/position/12345",
         )
         reason = job_notify_block_reason(job)
         assert reason is None

@@ -28,9 +28,25 @@ def test_is_bad_url_placeholders():
 
 
 def test_is_bad_url_valid():
-    assert is_bad_url("https://stripe.com/jobs") is False
-    assert is_bad_url("https://openai.com/careers") is False
+    # Specific job URLs should be valid
     assert is_bad_url("https://jobs.lever.co/stripe/123") is False
+    assert is_bad_url("https://boards.greenhouse.io/stripe/jobs/456") is False
+    assert is_bad_url("https://stripe.com/careers/position/789") is False
+
+
+def test_is_bad_url_generic_career_pages():
+    """Generic career pages should be treated as bad URLs."""
+    # dreamworkhq aggregator
+    assert is_bad_url("https://dreamworkhq.com/jobs") is True
+    assert is_bad_url("https://dreamworkhq.com/tech-jobs") is True
+    
+    # Generic search pages
+    assert is_bad_url("https://tesla.com/careers/search") is True
+    assert is_bad_url("https://google.com/jobs/results") is True
+    
+    # Career homepages without job IDs
+    assert is_bad_url("https://company.com/careers") is True
+    assert is_bad_url("https://company.com/jobs") is True
 
 
 def test_is_bad_url_malformed():
@@ -167,7 +183,7 @@ def test_quarantine_cli_with_probe(tmp_path, monkeypatch, capsys):
         company="SuccessCo",
         title="SWE Intern",
         location="NYC",
-        url="https://successco.com/jobs",
+        url="https://successco.com/jobs/12345",
     )
 
     db.upsert_job(failing_job)

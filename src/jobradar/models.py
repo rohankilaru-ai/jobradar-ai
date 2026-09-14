@@ -33,6 +33,52 @@ def _norm(s: str) -> str:
     return s
 
 
+def _is_generic_career_page(url: str) -> bool:
+    """
+    Check if URL is a generic career search/listing page (not a specific job posting).
+    Used at ingest to filter out aggregator and search pages.
+    """
+    if not url:
+        return False
+    
+    url = url.strip()
+    if not url.startswith("http"):
+        return False
+    
+    url_lower = url.lower()
+    parsed = urlparse(url_lower)
+    domain = parsed.netloc.lstrip("www.")
+    path = parsed.path.rstrip("/")
+    query = parsed.query
+    
+    # Block: dreamworkhq.com is an aggregator
+    if "dreamworkhq.com" in domain:
+        return True
+    
+    # Block: Generic career search patterns
+    generic_patterns = [
+        "/careers/search", "/jobs/search",
+        "/careers/results", "/jobs/results",
+        "/careers/openings", "/jobs/openings",
+        "/job-search", "/job-listings",
+    ]
+    if any(pattern in path for pattern in generic_patterns):
+        return True
+    
+    # Block: Career homepage without job identifier (exact match only)
+    # This catches /careers or /jobs at the end of the path, not as part of a longer path
+    if path in ["/careers", "/jobs", "/career", "/job"]:
+        return True
+    
+    # Block: Query-based searches
+    if query and any(param in query for param in ("query=", "search=", "q=", "keyword=")):
+        # Unless it has a job identifier
+        if not any(param in query for param in ("gh_jid=", "job_id=", "jobid=", "id=")):
+            return True
+    
+    return False
+
+
 def is_bad_url(url: str) -> bool:
     """Check if URL is empty, whitespace-only, or a known placeholder."""
     url = (url or "").strip()
@@ -48,6 +94,9 @@ def is_bad_url(url: str) -> bool:
         for bad in _BAD_URL_PATTERNS:
             if bad in netloc_lower:
                 return True
+        # Check if it's a generic career page (not a specific job)
+        if _is_generic_career_page(url):
+            return True
     except Exception:
         return True
     return False
