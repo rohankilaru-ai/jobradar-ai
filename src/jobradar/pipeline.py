@@ -95,7 +95,7 @@ def run_scan(
                     except Exception as exc:
                         log.warning("director enqueue failed: %s", exc)
                     try:
-                        notion_mod.upsert_job(stored, db=db, status=notion_mod.STATUS_SEEN)
+                        notion_mod.upsert_job(stored, db=db, status=notion_mod.STATUS_BACKLOG)
                     except Exception as exc:
                         log.warning("notion upsert failed: %s", exc)
     return stats
