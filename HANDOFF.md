@@ -33,13 +33,20 @@ Director routine: `jobradar-director` (webhook).
 
 ## Next (MVP → production)
 
-1. Live `scan --once` validation; tune classify exclude list if noisy
-2. Optional: Twilio SMS + Discord webhook (`.env.example`)
-3. Wire Director `.env` keys; confirm `ping-grok`
-4. Notify only jobs first-seen within 14 days (backfill older into DB silently)
-5. GitHub Actions already runs pytest
-6. Later: Gmail inbox bot (Phase 4), 24/7 VM for Python loop
-7. Do **not** scrape `pittcsc/Summer2027-Internships`
+**Delivered in open overnight PRs #1–#5:**
+- 14-day notify (backfill older into DB silently) — PR #1
+- Parser hardening (↳, Inactive, column alignment) — PR #1
+- Product completion tests — PR #2
+- Link verification gate + parser column alignment — PR #3
+- Live scan validation docs + harness — PR #4
+- Classify exclude-list tuning — PR #5 (partial)
+- ping-grok / Director empty-key hardening + safe DB refresh — PR #5 (this PR)
+
+**Remaining (not yet merged):**
+1. Director `.env` keys wiring (by Rohan after specialist UI exposes webhook URLs)
+2. Optional: Twilio SMS + Discord webhook fine-tuning
+3. Later: Gmail inbox bot (Phase 4), 24/7 VM for Python loop
+4. Do **not** scrape `pittcsc/Summer2027-Internships`
 
 ## Key modules
 
