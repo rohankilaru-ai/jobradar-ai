@@ -4,6 +4,35 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
+## Latest: Notion Backlog Flooding Fix + Internships-Only Filter (PR #15)
+
+**Problem 1:** Pipeline was creating Notion Backlog pages for ALL new jobs, including those that failed quality gates (bad URLs, old postings, etc.). Rohan's Notion filled with thousands of non-actionable listings.
+
+**Problem 2:** New-grad/full-time job listings were polluting internship alerts. Rohan targets summer/off-season internships for 2026–2027, not new-grad roles.
+
+**Fixed:**
+- `src/jobradar/pipeline.py`: Notion upsert now ONLY happens when `should_alert=True` (Discord-worthy jobs)
+- Non-alert jobs (outside 14-day window, bad URLs, failed probes) skip Notion entirely
+- Gmail-sourced status updates (Applied/OA/Interview) still work — separate path preserved
+- `src/jobradar/models.py`: Added `posted_at` field to JobRecord for company/source post dates
+- `src/jobradar/notion.py`: Notion `Posted` property now populated when `posted_at` is available (not faked with first_seen)
+- `src/jobradar/sources.py`: Disabled `simplify-newgrad` source by default (New-Grad-Positions repo no longer scraped)
+- `src/jobradar/classify.py`: New-grad/full-time roles filtered unless also clearly internships
+  - Added NEWGRAD_SIGNALS: "new grad", "full-time", "entry level", etc.
+  - Added INTERN_SIGNALS: "intern", "co-op", "summer", etc.
+  - Exclude new-grad-only titles, keep true intern roles
+- Tests:
+  - `test_pipeline_no_notion_for_non_alert_jobs`: Verifies no Backlog dumps for silent jobs
+  - `test_notion_posted_date_wiring`: Verifies Posted property populated when date available
+  - `test_exclude_newgrad_fulltime`: Verifies new-grad filtering (exclude new-grad, keep interns)
+- All 212 tests pass
+
+**Impact:** 
+- Notion only receives meaningful internship jobs that pass Discord quality gates
+- Backlog status reserved for human/Gmail moves, not scout dumps
+- New-grad/full-time roles filtered out; summer/off-season internship sources prioritized
+- Posted dates visible in Notion when parsers provide them
+
 ## What works now (MVP)
 
 Python scout → parse → classify → dedupe → SQLite → mock notify JSONL.

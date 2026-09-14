@@ -193,6 +193,7 @@ class JobRecord:
     is_closed: bool = False
     first_seen_at: str = ""
     last_seen_at: str = ""
+    posted_at: str = ""  # Company/source post date (ISO format YYYY-MM-DD or full ISO), empty if unknown
     canonical_key: str = ""
 
     def __post_init__(self) -> None:

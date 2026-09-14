@@ -420,3 +420,118 @@ def test_pipeline_backlog_bad_url(tmp_path, monkeypatch):
         stats = run_scan(db=db, sources=[])
         
         mock_discord.assert_not_called()
+
+
+def test_pipeline_no_notion_for_non_alert_jobs(tmp_path, monkeypatch):
+    """Non-alert jobs should NOT create Notion pages (fix for Backlog flooding)."""
+    from jobradar.pipeline import run_scan
+    from jobradar.scout import ScoutResult
+    from jobradar import pipeline as pipeline_mod
+    
+    monkeypatch.setenv("JOBRADAR_NOTIFY_MOCK_PATH", str(tmp_path / "n.jsonl"))
+    monkeypatch.setenv("JOBRADAR_LINK_PROBE", "0")  # Speed up test
+    db = Database(tmp_path / "p.db")
+    
+    # Pre-seed so we're not in seed_mode
+    db.upsert_job(JobRecord(company="Seed", title="Init", location="SF", url="https://seed.com/1", sources=["seed"]))
+    
+    now = datetime.now(timezone.utc)
+    old = now - timedelta(days=20)
+    
+    # Create two jobs: one old (no alert), one new (alert)
+    old_job = JobRecord(
+        company="OldCo",
+        title="Past Intern",
+        location="Remote",
+        url="https://oldco.com/jobs/123",
+        sources=["test"],
+        first_seen_at=old.isoformat(),
+        last_seen_at=old.isoformat(),
+    )
+    
+    new_job = JobRecord(
+        company="NewCo",
+        title="Fresh Intern",
+        location="SF",
+        url="https://newco.com/jobs/456",
+        sources=["test"],
+        first_seen_at=now.isoformat(),
+        last_seen_at=now.isoformat(),
+    )
+    
+    def fake_scout(db_arg, sources=None):
+        return [ScoutResult(source="test", jobs=[old_job, new_job], not_modified=False, error=None)]
+    
+    monkeypatch.setattr(pipeline_mod, "scout_all", fake_scout)
+    
+    with patch("jobradar.notify.send_discord") as mock_discord, \
+         patch("jobradar.notify.send_ntfy") as mock_ntfy, \
+         patch("jobradar.notify.send_telegram") as mock_telegram, \
+         patch("jobradar.notion.configured") as mock_notion_configured, \
+         patch("jobradar.notion.upsert_job") as mock_notion_upsert:
+        
+        mock_discord.return_value = "ok"
+        mock_ntfy.return_value = "ok"
+        mock_telegram.return_value = "ok"
+        mock_notion_configured.return_value = True
+        
+        stats = run_scan(db=db, sources=[])
+        
+        # Verify stats: 2 fetched, 2 kept, 2 new, 1 notified (only the recent job)
+        assert stats.fetched == 2
+        assert stats.kept == 2
+        assert stats.new == 2
+        assert stats.notified == 1
+        
+        # Discord/ntfy/telegram should be called once (for new_job only)
+        assert mock_discord.call_count == 1
+        assert mock_ntfy.call_count == 1
+        assert mock_telegram.call_count == 1
+        
+        # Notion should ONLY be called once (for the alert-worthy new_job)
+        # NOT for the old_job which is outside the notify window
+        assert mock_notion_upsert.call_count == 1
+        
+        # Verify the Notion call was for the new job with STATUS_SEEN
+        call_args = mock_notion_upsert.call_args
+        assert call_args[0][0].company == "NewCo"
+        assert call_args[1]["status"] == "Seen"
+
+
+def test_notion_posted_date_wiring():
+    """Notion Posted property should be populated when job.posted_at is set."""
+    from jobradar.notion import page_properties
+    
+    # Job with posted_at should include Posted in properties
+    job_with_date = JobRecord(
+        company="TestCo",
+        title="SWE Intern",
+        location="SF",
+        url="https://testco.com/jobs/123",
+        posted_at="2026-09-01",
+    )
+    props = page_properties(job_with_date, status="Seen")
+    assert "Posted" in props
+    assert props["Posted"]["date"]["start"] == "2026-09-01"
+    
+    # Job without posted_at should not include Posted
+    job_without_date = JobRecord(
+        company="TestCo",
+        title="SWE Intern",
+        location="SF",
+        url="https://testco.com/jobs/456",
+    )
+    props = page_properties(job_without_date, status="Seen")
+    assert "Posted" not in props
+    
+    # Job with full ISO timestamp should extract date portion
+    job_with_timestamp = JobRecord(
+        company="TestCo",
+        title="SWE Intern",
+        location="SF",
+        url="https://testco.com/jobs/789",
+        posted_at="2026-09-15T10:30:00Z",
+    )
+    props = page_properties(job_with_timestamp, status="Seen")
+    assert "Posted" in props
+    assert props["Posted"]["date"]["start"] == "2026-09-15"

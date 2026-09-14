@@ -162,6 +162,33 @@ def test_edge_cases_ambiguous():
     assert should_keep(JobRecord(company="Unknown Co", title="Mystery Intern")) is True
 
 
+def test_exclude_newgrad_fulltime():
+    """New-grad and full-time roles should be excluded unless clearly internships."""
+    # Pure new-grad roles (no intern signal) should be excluded
+    assert should_keep(JobRecord(company="Tech Co", title="Software Engineer - New Grad")) is False
+    assert should_keep(JobRecord(company="Startup", title="New Graduate Software Engineer")) is False
+    assert should_keep(JobRecord(company="BigTech", title="SWE - Recent Graduate")) is False
+    assert should_keep(JobRecord(company="Company", title="University Graduate - SDE")) is False
+    assert should_keep(JobRecord(company="Firm", title="College Graduate Engineer")) is False
+    
+    # Full-time roles without intern signal should be excluded
+    assert should_keep(JobRecord(company="Tech", title="Software Engineer - Full-Time")) is False
+    assert should_keep(JobRecord(company="Startup", title="Full Time SWE")) is False
+    assert should_keep(JobRecord(company="Company", title="Entry Level Engineer")) is False
+    assert should_keep(JobRecord(company="Firm", title="Entry-Level Software Developer")) is False
+    
+    # Hybrid roles with both new-grad AND intern signals should be kept
+    assert should_keep(JobRecord(company="Tech", title="New Grad Software Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Startup", title="Software Intern - New Graduate")) is True
+    assert should_keep(JobRecord(company="Company", title="Summer Intern (Recent Graduates Welcome)")) is True
+    
+    # Pure intern roles should be kept
+    assert should_keep(JobRecord(company="Tech", title="Software Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Startup", title="Summer SWE Intern")) is True
+    assert should_keep(JobRecord(company="Company", title="Co-op Software Engineer")) is True
+    assert should_keep(JobRecord(company="Firm", title="Spring Intern - ML Engineer")) is True
+
+
 def test_snippet_context_matters():
     """Snippet text is included in classification blob."""
     # Exclude keyword in snippet
