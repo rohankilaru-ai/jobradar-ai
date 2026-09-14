@@ -1,39 +1,63 @@
-"""JobRadar CLI entrypoints (stubs until pipeline lands)."""
+"""JobRadar CLI entrypoints."""
 
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 import time
 
 from jobradar import __version__
+from jobradar.db import Database
+from jobradar.pipeline import run_scan
 
 
 def cmd_health(_: argparse.Namespace) -> int:
+    db = Database()
     print(f"jobradar {__version__} ok")
-    print("db: not configured yet")
+    print(f"db: {db.path} ({db.count_jobs()} jobs)")
     print("notifiers: mock")
     print("grok webhooks: skipped until keys set")
     return 0
 
 
 def cmd_scan(args: argparse.Namespace) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+
+    def once() -> None:
+        stats = run_scan()
+        print(
+            f"scan done fetched={stats.fetched} kept={stats.kept} "
+            f"new={stats.new} notified={stats.notified}"
+        )
+        if stats.source_errors:
+            for err in stats.source_errors:
+                print(f"source_error: {err}")
+
     if args.loop:
         interval = args.interval
-        print(f"scan loop stub — interval={interval}s (pipeline not implemented yet)")
+        print(f"scan loop interval={interval}s")
         try:
             while True:
-                print("scan --once stub: no sources fetched yet")
+                once()
                 time.sleep(interval)
         except KeyboardInterrupt:
             print("stopped")
             return 0
-    print("scan --once stub: no sources fetched yet")
+    once()
     return 0
 
 
 def cmd_ping_grok(_: argparse.Namespace) -> int:
-    print("ping-grok stub: empty webhook env → skip (OK)")
+    from jobradar.grok import configured_targets, ping_all
+
+    targets = configured_targets()
+    if not targets:
+        print("ping-grok: no webhook keys set → skip (OK)")
+        return 0
+    print("ping-grok: targets=" + ",".join(targets))
+    for name, status in ping_all().items():
+        print(f"  {name}: {status}")
     return 0
 
 
