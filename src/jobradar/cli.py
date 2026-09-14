@@ -224,6 +224,9 @@ def cmd_db_init(_: argparse.Namespace) -> int:
     """Initialize empty DB schema. Use scripts/fresh_db_backup.sh for safe resets."""
     db = Database()
     print(f"db initialized: {db.path}")
+    return 0
+
+
 def cmd_quarantine_bad_urls(args: argparse.Namespace) -> int:
     import httpx
 
@@ -265,8 +268,6 @@ def cmd_quarantine_bad_urls(args: argparse.Namespace) -> int:
 
     print(f"quarantine scan complete")
     print(f"checked={checked} quarantined={quarantined} already_ok={already_ok} errors={errors}")
-    return 0
-
     return 0
 
 
