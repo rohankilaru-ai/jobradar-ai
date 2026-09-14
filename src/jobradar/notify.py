@@ -12,7 +12,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from email.header import Header
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -42,6 +42,15 @@ RECRUITING_HOSTS = {
 }
 
 NOTIFY_WINDOW_DAYS = 14
+
+BAD_URL_PATTERNS = [
+    r"example\.com",
+    r"example\.org",
+    r"localhost",
+    r"127\.0\.0\.1",
+    r"test\.com",
+    r"placeholder",
+]
 
 
 def within_notify_window(
@@ -227,6 +236,44 @@ def job_notify_block_reason(job: JobRecord) -> str | None:
     return None
 
 
+def is_link_probe_enabled() -> bool:
+    """Alias for link_probe_enabled (PR #7 / backlog tests)."""
+    return link_probe_enabled()
+
+def is_url_quality_good(url: str) -> bool:
+    """Lightweight URL quality check (empty / example / invalid scheme)."""
+    url = (url or "").strip()
+    if not url:
+        return False
+    url_lower = url.lower()
+    for pattern in BAD_URL_PATTERNS:
+        if re.search(pattern, url_lower):
+            return False
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            return False
+    except Exception:
+        return False
+    return True
+
+def should_send_alerts(job: JobRecord) -> bool:
+    """Discord/ntfy/Telegram only when inside notify window AND main quality gates pass."""
+    if not within_notify_window(job):
+        log.debug("Job outside notify window: %s", job.canonical_key)
+        return False
+    block = job_notify_block_reason(job)
+    if block:
+        log.debug("Job blocked from alerts (%s): %s", block, job.canonical_key)
+        return False
+    return True
+
+
+def is_within_notify_window(job: JobRecord) -> bool:
+    """Alias used by backlog notify tests."""
+    return within_notify_window(job)
+
+
 def format_alert(job: JobRecord) -> str:
     prefix = "[PRIORITY] " if job.priority else ""
     source = job.sources[0] if job.sources else "unknown"
@@ -322,19 +369,19 @@ class Notifier:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.db = db
 
-    def notify(self, job: JobRecord) -> bool:
+    def notify(self, job: JobRecord, *, silent: bool = False) -> bool:
+        """Notify about a job. If silent=True, only write JSONL (no Discord/ntfy/Telegram)."""
         if self.db and self.db.was_notified(job.canonical_key):
             return False
-        
-        # Quality gate: check if job should be blocked
-        block_reason = job_notify_block_reason(job)
-        if block_reason:
-            log.info("skipping notify for %s: %s", job.canonical_key, block_reason)
-            return False
-        
-        # Sanitize URL before notifying
-        job.url = sanitize_job_url(job.url)
-        
+
+        if not silent:
+            # Quality gate: check if job should be blocked (main/#3 gates)
+            block_reason = job_notify_block_reason(job)
+            if block_reason:
+                log.info("skipping notify for %s: %s", job.canonical_key, block_reason)
+                return False
+            job.url = sanitize_job_url(job.url)
+
         payload = format_alert(job)
         record = {
             "ts": _now(),
@@ -343,11 +390,17 @@ class Notifier:
             "priority": job.priority,
             "text": payload,
             "job": job.webhook_payload()["job"],
+            "silent": silent,
         }
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
         if self.db:
             self.db.record_notification(job.canonical_key, "jsonl", payload, record["ts"])
+
+        if silent:
+            log.debug("Silent notification (JSONL only): %s", job.canonical_key)
+            return True
+
         try:
             send_discord(payload)
         except Exception as exc:

@@ -12,6 +12,7 @@ from jobradar.models import JobRecord
 log = logging.getLogger("jobradar.notion")
 
 STATUS_SEEN = "Seen"
+STATUS_BACKLOG = "Backlog"
 
 
 def configured() -> bool:
