@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 import re
 from html.parser import HTMLParser
 from typing import Any, Iterable
@@ -20,6 +21,37 @@ def _clean(text: str) -> str:
     return _WS.sub(" ", text).strip()
 
 
+
+_AGE_TOKEN = re.compile(r"^(\d+)\s*([dDhHmMwW])$")
+
+
+def age_token_to_posted_at(token: str, *, now: datetime | None = None) -> str:
+    """Convert Simplify-style age tokens (12d, 3h) to an ISO date string; empty if unknown."""
+    from datetime import datetime, timezone, timedelta
+    raw = (token or "").strip()
+    if not raw:
+        return ""
+    # already a date
+    if re.match(r"^\d{4}-\d{2}-\d{2}", raw):
+        return raw[:10]
+    m = _AGE_TOKEN.match(raw)
+    if not m:
+        return ""
+    n = int(m.group(1))
+    unit = m.group(2).lower()
+    now = now or datetime.now(timezone.utc)
+    if unit == "h":
+        dt = now - timedelta(hours=n)
+    elif unit == "d":
+        dt = now - timedelta(days=n)
+    elif unit == "w":
+        dt = now - timedelta(weeks=n)
+    elif unit == "m":
+        dt = now - timedelta(days=30 * n)
+    else:
+        return ""
+    return dt.date().isoformat()
+
 def parse_aprameyak_json(raw: str | bytes, source: str = "aprameyak-2027") -> list[JobRecord]:
     data = json.loads(raw)
     if not isinstance(data, list):
@@ -32,6 +64,7 @@ def parse_aprameyak_json(raw: str | bytes, source: str = "aprameyak-2027") -> li
         title = str(item.get("role") or item.get("title") or "").strip()
         if not company or not title:
             continue
+        posted = str(item.get("date_added") or item.get("posted_at") or item.get("date") or "").strip()
         out.append(
             JobRecord(
                 company=company,
@@ -41,6 +74,7 @@ def parse_aprameyak_json(raw: str | bytes, source: str = "aprameyak-2027") -> li
                 sources=[source],
                 snippet=f"{title} @ {company}",
                 season=str(item.get("season") or item.get("type") or "").strip(),
+                posted_at=posted,
             )
         )
     return out
@@ -59,6 +93,7 @@ def parse_dreamwork_json(raw: str | bytes, source: str = "dreamwork-2027") -> li
         title = str(item.get("title") or "").strip()
         if not company or not title:
             continue
+        posted = str(item.get("date_added") or item.get("posted_at") or item.get("date") or item.get("created_at") or "").strip()
         out.append(
             JobRecord(
                 company=company,
@@ -67,6 +102,7 @@ def parse_dreamwork_json(raw: str | bytes, source: str = "dreamwork-2027") -> li
                 url=str(item.get("url") or "").strip(),
                 sources=[source],
                 snippet=f"{title} @ {company}",
+                posted_at=posted,
             )
         )
     return out
@@ -86,6 +122,7 @@ def parse_applyguy_json(raw: str | bytes, source: str = "applyguy-2027") -> list
         if not company or not title:
             continue
         url = str(item.get("listingUrl") or item.get("url") or "").strip()
+        posted = str(item.get("date_added") or item.get("posted_at") or item.get("date") or item.get("createdAt") or "").strip()
         out.append(
             JobRecord(
                 company=company,
@@ -95,6 +132,7 @@ def parse_applyguy_json(raw: str | bytes, source: str = "applyguy-2027") -> list
                 sources=[source],
                 snippet=f"{title} @ {company}",
                 season=str(item.get("season") or "").strip(),
+                posted_at=posted,
             )
         )
     return out
@@ -214,6 +252,17 @@ def parse_simplify_html(raw: str, source: str = "simplify-summer-2027") -> list[
             continue
         
         is_closed = "🔒" in title or "closed" in title.lower()
+        # Age often lives in the last cell(s) after Application (e.g. 12d)
+        age_raw = ""
+        for cell in cells[4:]:
+            tok = _clean(cell)
+            if age_token_to_posted_at(tok):
+                age_raw = tok
+                break
+            if _AGE_TOKEN.match(tok.strip()):
+                age_raw = tok.strip()
+                break
+        posted = age_token_to_posted_at(age_raw)
         out.append(
             JobRecord(
                 company=company,
@@ -223,6 +272,7 @@ def parse_simplify_html(raw: str, source: str = "simplify-summer-2027") -> list[
                 sources=[source],
                 snippet=f"{title} @ {company}",
                 is_closed=is_closed,
+                posted_at=posted,
             )
         )
     return out
@@ -264,6 +314,8 @@ def parse_markdown_table(raw: str, source: str = "markdown") -> list[JobRecord]:
                     header_idx["location"] = i
                 elif any(k in name for k in ("application", "link", "posting", "url")):
                     header_idx["url"] = i
+                elif name.strip() in {"age", "date", "posted", "added"} or "age" == name.strip():
+                    header_idx["age"] = i
             continue
         if header_idx is None:
             continue
@@ -289,6 +341,9 @@ def parse_markdown_table(raw: str, source: str = "markdown") -> list[JobRecord]:
         if found:
             url = found.group(0).rstrip(").,")
         is_closed = "🔒" in title or "closed" in title.lower()
+        ai = header_idx.get("age")
+        age_cell = _strip_md(cells[ai]) if ai is not None and ai < len(cells) else ""
+        posted = age_token_to_posted_at(age_cell)
         out.append(
             JobRecord(
                 company=company,
@@ -298,6 +353,7 @@ def parse_markdown_table(raw: str, source: str = "markdown") -> list[JobRecord]:
                 sources=[source],
                 snippet=f"{title} @ {company}",
                 is_closed=is_closed,
+                posted_at=posted,
             )
         )
     return out

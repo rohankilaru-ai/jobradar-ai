@@ -161,6 +161,7 @@ def test_get_discord_webhook_fortune500(monkeypatch):
 
 def test_get_discord_webhook_fortune500_f500_alias(monkeypatch):
     """Fortune500 tier should support DISCORD_WEBHOOK_F500 alias."""
+    monkeypatch.delenv("DISCORD_WEBHOOK_FORTUNE500", raising=False)
     monkeypatch.setenv("DISCORD_WEBHOOK_F500", "https://discord.com/f500")
     monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://discord.com/legacy")
     
