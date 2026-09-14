@@ -4,6 +4,19 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
+## Latest: Notion Backlog Flooding Fix (PR #TBD)
+
+**Problem:** Pipeline was creating Notion Backlog pages for ALL new jobs, including those that failed quality gates (bad URLs, old postings, etc.). Rohan's Notion filled with thousands of non-actionable listings.
+
+**Fixed:**
+- `src/jobradar/pipeline.py`: Notion upsert now ONLY happens when `should_alert=True` (Discord-worthy jobs)
+- Non-alert jobs (outside 14-day window, bad URLs, failed probes) skip Notion entirely
+- Gmail-sourced status updates (Applied/OA/Interview) still work — separate path preserved
+- New test: `test_pipeline_no_notion_for_non_alert_jobs` verifies no Backlog dumps for silent jobs
+- All 210 tests pass
+
+**Impact:** Notion now only receives meaningful new jobs that pass Discord quality gates. Backlog status reserved for human/Gmail moves, not scout dumps.
+
 ## What works now (MVP)
 
 Python scout → parse → classify → dedupe → SQLite → mock notify JSONL.
