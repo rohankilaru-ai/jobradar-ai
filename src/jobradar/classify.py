@@ -62,7 +62,8 @@ EXCLUDE = (
 NEWGRAD_SIGNALS = (
     "new grad", "new-grad", "newgrad", "new graduate", "recent graduate",
     "university graduate", "college graduate", "full-time", "full time",
-    "entry level", "entry-level",
+    "entry level", "entry-level", "early career", "early careers",
+    "early-career", "university grad", "grad program", "new graduate engineer",
 )
 
 # Intern signals that override new-grad exclusion

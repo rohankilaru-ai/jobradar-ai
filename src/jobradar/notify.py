@@ -61,10 +61,12 @@ def within_notify_window(
     days: int | None = None,
     now: datetime | None = None,
 ) -> bool:
-    """Return True if job.first_seen_at is within the notify window.
+    """Return True if the listing is within the notify window.
 
-    Older jobs are still stored; they just skip alerts. Missing/unparseable
-    timestamps are treated as fresh (notify) so we never drop a new listing.
+    Prefer ``posted_at`` (aggregator/company list date) when present so weeks-old
+    listings do not Discord-alert just because JobRadar first saw them today.
+    Fall back to ``first_seen_at``. Missing/unparseable timestamps are treated as
+    fresh (notify) so we never drop a brand-new listing with unknown age.
     """
     window = days if days is not None else int(
         (os.environ.get("JOBRADAR_NOTIFY_WINDOW_DAYS") or str(NOTIFY_WINDOW_DAYS)).strip()
@@ -72,11 +74,14 @@ def within_notify_window(
     )
     if window < 0:
         return True
-    raw = (job.first_seen_at or "").strip()
+    raw = (getattr(job, "posted_at", None) or "").strip() or (job.first_seen_at or "").strip()
     if not raw:
         return True
     try:
-        fs = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+            fs = datetime.fromisoformat(raw).replace(tzinfo=timezone.utc)
+        else:
+            fs = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
         return True
     if fs.tzinfo is None:

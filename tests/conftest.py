@@ -19,6 +19,10 @@ def disable_live_notifications_in_tests(monkeypatch):
     even if .env or environment has these vars set.
     """
     monkeypatch.delenv("DISCORD_WEBHOOK_URL", raising=False)
+    monkeypatch.delenv("DISCORD_WEBHOOK_PRIORITY", raising=False)
+    monkeypatch.delenv("DISCORD_WEBHOOK_FORTUNE500", raising=False)
+    monkeypatch.delenv("DISCORD_WEBHOOK_F500", raising=False)
+    monkeypatch.delenv("DISCORD_WEBHOOK_OTHER", raising=False)
     monkeypatch.delenv("NTFY_TOPIC", raising=False)
     monkeypatch.delenv("NTFY_SERVER", raising=False)
     monkeypatch.delenv("NTFY_TOKEN", raising=False)
