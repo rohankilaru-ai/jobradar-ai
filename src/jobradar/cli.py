@@ -11,9 +11,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+log = logging.getLogger("jobradar.cli")
+
 from jobradar import __version__
 from jobradar.db import Database
 from jobradar.director import ping_configured
+from jobradar.models import is_bad_url
 from jobradar.notify import (
     discord_configured,
     ntfy_configured,
@@ -221,6 +224,49 @@ def cmd_db_init(_: argparse.Namespace) -> int:
     """Initialize empty DB schema. Use scripts/fresh_db_backup.sh for safe resets."""
     db = Database()
     print(f"db initialized: {db.path}")
+def cmd_quarantine_bad_urls(args: argparse.Namespace) -> int:
+    import httpx
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    db = Database()
+    probe_enabled = os.environ.get("JOBRADAR_LINK_PROBE", "0") == "1"
+
+    all_jobs = db.list_jobs(limit=None)
+    checked = 0
+    quarantined = 0
+    already_ok = 0
+    errors = 0
+
+    for job in all_jobs:
+        checked += 1
+        if job.is_closed:
+            already_ok += 1
+            continue
+
+        quarantine = False
+        if is_bad_url(job.url):
+            quarantine = True
+        elif probe_enabled and job.url:
+            try:
+                resp = httpx.head(job.url, timeout=5.0, follow_redirects=True)
+                if resp.status_code >= 400:
+                    quarantine = True
+            except Exception as exc:
+                log.debug("probe failed for %s: %s", job.url, exc)
+                errors += 1
+
+        if quarantine:
+            job.is_closed = True
+            db.upsert_job(job)
+            quarantined += 1
+            log.info("quarantined: %s | %s", job.company, job.title)
+        else:
+            already_ok += 1
+
+    print(f"quarantine scan complete")
+    print(f"checked={checked} quarantined={quarantined} already_ok={already_ok} errors={errors}")
+    return 0
+
     return 0
 
 
@@ -287,6 +333,11 @@ def build_parser() -> argparse.ArgumentParser:
     db_init.set_defaults(func=cmd_db_init)
     refresh = sub.add_parser("refresh-jobs", help="Silent job field refresh (no notifications)")
     refresh.set_defaults(func=cmd_refresh_jobs)
+    qb = sub.add_parser(
+        "quarantine-bad-urls",
+        help="Scan existing jobs and mark bad/empty URLs as closed (silent, no alerts)",
+    )
+    qb.set_defaults(func=cmd_quarantine_bad_urls)
 
     return p
 

@@ -9,7 +9,7 @@ from jobradar.classify import enrich, should_keep
 from jobradar.db import Database
 from jobradar.dedupe import find_duplicate
 from jobradar.director import enqueue as director_enqueue
-from jobradar.models import JobRecord
+from jobradar.models import JobRecord, is_bad_url
 from jobradar.notify import Notifier, within_notify_window
 from jobradar.scout import ScoutResult, scout_all
 from jobradar.sources import Source
@@ -21,6 +21,7 @@ log = logging.getLogger("jobradar.pipeline")
 class PipelineStats:
     fetched: int = 0
     kept: int = 0
+    skipped_bad_url: int = 0
     new: int = 0
     notified: int = 0
     seeded: int = 0
@@ -63,6 +64,10 @@ def run_scan(
                 continue
             job = enrich(job)
             stats.kept += 1
+            if is_bad_url(job.url):
+                stats.skipped_bad_url += 1
+                log.debug("skipping job with bad URL: %s | %s", job.company, job.title)
+                continue
             dup = find_duplicate(job, seen_in_pass)
             if dup is not None:
                 job.canonical_key = dup.canonical_key

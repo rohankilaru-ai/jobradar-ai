@@ -7,16 +7,50 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 
 _WS = re.compile(r"\s+")
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
+
+# Placeholder/invalid URL patterns to reject
+_BAD_URL_PATTERNS = {
+    "example.com",
+    "example.org",
+    "example.net",
+    "test.com",
+    "test.org",
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+    "about:blank",
+}
 
 
 def _norm(s: str) -> str:
     s = (s or "").strip().lower()
     s = _WS.sub(" ", s)
     return s
+
+
+def is_bad_url(url: str) -> bool:
+    """Check if URL is empty, whitespace-only, or a known placeholder."""
+    url = (url or "").strip()
+    if not url:
+        return True
+    if url.lower().startswith(("javascript:", "mailto:", "data:", "#")):
+        return True
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            return True
+        netloc_lower = parsed.netloc.lower()
+        for bad in _BAD_URL_PATTERNS:
+            if bad in netloc_lower:
+                return True
+    except Exception:
+        return True
+    return False
 
 
 def canonical_key(company: str, title: str, location: str, url: str = "") -> str:
