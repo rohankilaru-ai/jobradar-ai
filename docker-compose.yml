@@ -1,0 +1,7 @@
+services:
+  jobradar:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    restart: unless-stopped
