@@ -161,6 +161,49 @@ def cmd_gmail_sync(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verify_links(args: argparse.Namespace) -> int:
+    """Verify job URLs from DB (forces link probe ON for self-check)."""
+    import os
+    from jobradar.notify import job_notify_block_reason, sanitize_job_url
+    
+    # Force link probe ON for verify-links
+    os.environ["JOBRADAR_LINK_PROBE"] = "1"
+    
+    logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING, 
+                       format="%(levelname)s %(name)s: %(message)s")
+    db = Database()
+    
+    jobs = db.list_jobs(priority_only=args.priority_only, limit=args.limit)
+    print(f"Checking {len(jobs)} jobs...")
+    
+    passed = 0
+    failed_jobs = []
+    
+    for job in jobs:
+        block_reason = job_notify_block_reason(job)
+        
+        if block_reason:
+            failed_jobs.append((job, block_reason))
+        else:
+            passed += 1
+            if args.verbose:
+                print(f"✓ {job.company} | {job.title}")
+                print(f"   {sanitize_job_url(job.url)}")
+    
+    # Report failures
+    if failed_jobs:
+        print(f"\n❌ {len(failed_jobs)} failed:\n")
+        for job, reason in failed_jobs:
+            print(f"{job.company} | {job.title}")
+            print(f"   └─ {reason}")
+            if job.url:
+                print(f"   └─ {job.url}")
+            print()
+    
+    print(f"Results: {passed} passed, {len(failed_jobs)} failed")
+    return 0 if len(failed_jobs) == 0 else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="jobradar", description="JobRadar-AI internship radar")
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -208,6 +251,12 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--days", type=int, default=7)
     gs.add_argument("--max", type=int, default=100)
     gs.set_defaults(func=cmd_gmail_sync)
+
+    vl = sub.add_parser("verify-links", help="Verify job URLs (forces link probe ON)")
+    vl.add_argument("--priority-only", action="store_true", default=False)
+    vl.add_argument("--limit", type=int, default=None, help="Max jobs to check")
+    vl.add_argument("--verbose", "-v", action="store_true", help="Show all jobs, not just failures")
+    vl.set_defaults(func=cmd_verify_links)
 
     return p
 
