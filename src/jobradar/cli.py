@@ -204,6 +204,13 @@ def cmd_verify_links(args: argparse.Namespace) -> int:
     return 0 if len(failed_jobs) == 0 else 1
 
 
+def cmd_db_init(_: argparse.Namespace) -> int:
+    """Initialize empty DB schema. Use scripts/fresh_db_backup.sh for safe resets."""
+    db = Database()
+    print(f"db initialized: {db.path}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="jobradar", description="JobRadar-AI internship radar")
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -262,6 +269,9 @@ def build_parser() -> argparse.ArgumentParser:
     vl.add_argument("--limit", type=int, default=None, help="Max jobs to check")
     vl.add_argument("--verbose", "-v", action="store_true", help="Show all jobs, not just failures")
     vl.set_defaults(func=cmd_verify_links)
+
+    db_init = sub.add_parser("db-init", help="Initialize empty DB schema (see scripts/fresh_db_backup.sh)")
+    db_init.set_defaults(func=cmd_db_init)
 
     return p
 

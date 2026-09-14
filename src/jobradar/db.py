@@ -422,3 +422,7 @@ class Database:
     def count_applications(self) -> int:
         with self.connection() as conn:
             return int(conn.execute("SELECT COUNT(*) FROM applications").fetchone()[0])
+
+    def count_agent_runs(self) -> int:
+        with self.connection() as conn:
+            return int(conn.execute("SELECT COUNT(*) FROM agent_runs").fetchone()[0])
