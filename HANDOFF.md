@@ -32,6 +32,28 @@ Group chat: **JobRadar** (all six).
 Specialist per-bot webhook credential UI may be unavailable — Director fans out via in-app messaging instead of five webhook URLs.  
 Director routine: `jobradar-director` (webhook).
 
+## Discord Multi-Tier Routing (NEW)
+
+**Feature:** Discord alerts now route to different channels based on company tier:
+- **Priority** — Strategic high-value employers (OpenAI, Anthropic, Databricks, Snowflake, Nvidia, Scale AI, Perplexity, Meta, Google, Microsoft, Apple, Tesla, Palantir, Stripe, Figma, Roblox, Netflix, Jane Street, Hudson River Trading, Citadel, Ramp, Cursor, Anduril, xAI)
+- **Fortune500** — Large established employers not in Priority (banks, industrials, big tech adjacent). Maintainable list in `src/jobradar/tier.py`
+- **Other** — Everything else that passes alert gates
+
+**Setup:**
+1. Create 3 Discord channels (e.g., `#jobradar-priority`, `#jobradar-fortune500`, `#jobradar-other`)
+2. For each channel: Settings → Integrations → Webhooks → copy URL
+3. Set env vars in `.env`:
+   - `DISCORD_WEBHOOK_PRIORITY=https://discord.com/api/webhooks/...`
+   - `DISCORD_WEBHOOK_FORTUNE500=https://discord.com/api/webhooks/...`
+   - `DISCORD_WEBHOOK_OTHER=https://discord.com/api/webhooks/...`
+4. Legacy `DISCORD_WEBHOOK_URL` is fallback for any tier without specific URL
+
+**Implementation:**
+- Tier classification: `src/jobradar/tier.py` (fuzzy company name matching)
+- Webhook routing: `src/jobradar/notify.py` (`get_discord_webhook_url`, `send_discord`)
+- Tests: `tests/test_tier_routing.py` (22 tests, full coverage)
+- Fallback chain: tier URL → legacy URL → skip Discord
+
 ## Overnight #9 Delivered (verify-links + probe gate)
 
 **PR #10:** `cursor/overnight-9-verify-links-probe-e4c7`
