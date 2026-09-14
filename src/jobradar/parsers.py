@@ -144,43 +144,75 @@ class _SimplifyTableParser(HTMLParser):
 
 
 def _first_apply_url(cell_html: str) -> str:
+    """Extract first real job posting URL from application cell, skip Simplify redirects."""
     for m in _HREF.finditer(cell_html or ""):
         href = m.group(1)
-        if "simplify.jobs/c/" in href:
+        # Skip Simplify's tracking redirects
+        if "simplify.jobs/c/" in href or "simplify.jobs/p/" in href:
             continue
         if href.startswith("http"):
             return href
     return ""
 
 
+def _clean_url(url: str) -> str:
+    """Clean URL: strip trailing quotes and junk."""
+    url = (url or "").strip()
+    while url and url[-1] in ('"', "'", ">", ")", "`", "\\", ",", ";", "]"):
+        url = url[:-1]
+    return url.strip()
+
+
 def parse_simplify_html(raw: str, source: str = "simplify-summer-2027") -> list[JobRecord]:
-    """Parse Simplify/PittCSC HTML tables. Skip Inactive. Inherit company on ↳ rows."""
+    """Parse Simplify/PittCSC HTML tables. Skip Inactive. Inherit company on ↳ rows. Prevent column mis-alignment."""
     parser = _SimplifyTableParser()
     parser.feed(raw)
     out: list[JobRecord] = []
     last_company = ""
+    last_url = ""  # Track last URL for inherit rows
+    
     for cells in parser.rows:
         if len(cells) < 3:
             continue
+        
+        # Extract and clean company (cell 0) - strip all HTML including links
         company_raw = _clean(cells[0])
         title = _clean(cells[1])
         location = _clean(cells[2].replace("<br>", ", ").replace("<br/>", ", ").replace("<br />", ", "))
+        
+        # Extract URL ONLY from application cell (cell 3), not from company cell
+        # This prevents company <a href> from leaking into URL field
         app_html = cells[3] if len(cells) > 3 else ""
+        url = _first_apply_url(app_html)
+        url = _clean_url(url)  # Clean trailing quotes
+        
         if not title:
             continue
-        # header rows
+        
+        # Skip header rows
         if company_raw.lower() == "company" and title.lower() == "role":
             continue
+        
+        # Skip inactive postings
         if "inactive" in location.lower() or "inactive" in title.lower():
             continue
+        
+        # Handle ↳ inherit rows: inherit both company AND url from previous row
         if company_raw.startswith("↳") or company_raw == "↳":
             company = last_company
+            # If inherit row has no URL in its app cell, use last URL
+            if not url and last_url:
+                url = last_url
         else:
             company = company_raw
             last_company = company
+            # Update last_url only for non-inherit rows
+            if url:
+                last_url = url
+        
         if not company:
             continue
-        url = _first_apply_url(app_html)
+        
         is_closed = "🔒" in title or "closed" in title.lower()
         out.append(
             JobRecord(

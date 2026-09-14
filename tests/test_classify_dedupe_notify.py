@@ -22,7 +22,7 @@ def test_notify_once(tmp_path):
     db = Database(tmp_path / "n.db")
     path = tmp_path / "notifications.jsonl"
     n = MockNotifier(path=path, db=db)
-    job = JobRecord(company="Stripe", title="SWE Intern", location="SF", url="https://ex/1", priority=True)
+    job = JobRecord(company="Stripe", title="SWE Intern", location="SF", url="https://stripe.com/jobs/1", priority=True)
     assert n.notify(job) is True
     assert n.notify(job) is False
     text = format_alert(job)
@@ -47,7 +47,7 @@ def test_pipeline_seeds_first_scan_then_alerts(tmp_path):
         company="Stripe",
         title="Software Engineer Intern",
         location="SF",
-        url="https://example.com/stripe-intern",
+        url="https://stripe.com/careers/intern",
         sources=["test"],
     )
     stored, is_new = db.upsert_job(job)

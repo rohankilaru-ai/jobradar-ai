@@ -57,21 +57,41 @@ def page_properties(job: JobRecord, status: str = STATUS_SEEN, gmail_thread: str
 
 
 def find_page_id(canonical_key: str) -> str | None:
+    """Find Notion page ID by canonical_key using raw HTTP (notion_client.query may be unavailable)."""
     if not configured():
         return None
-    notion = _client()
-    result = notion.databases.query(
-        database_id=_db_id(),
-        filter={
+    
+    import httpx
+    
+    token = os.environ["NOTION_TOKEN"].strip()
+    db_id = _db_id()
+    url = f"https://api.notion.com/v1/databases/{db_id}/query"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "filter": {
             "property": "Canonical key",
             "rich_text": {"equals": canonical_key},
         },
-        page_size=1,
-    )
-    results = result.get("results") or []
-    if not results:
+        "page_size": 1,
+    }
+    
+    try:
+        resp = httpx.post(url, json=payload, headers=headers, timeout=10.0)
+        if resp.status_code != 200:
+            log.warning("notion query failed: HTTP %s", resp.status_code)
+            return None
+        data = resp.json()
+        results = data.get("results") or []
+        if not results:
+            return None
+        return results[0]["id"]
+    except Exception as exc:
+        log.warning("notion query failed: %s", exc)
         return None
-    return results[0]["id"]
 
 
 def upsert_job(
