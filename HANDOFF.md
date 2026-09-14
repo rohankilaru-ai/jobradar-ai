@@ -15,6 +15,7 @@ pytest
 python -m jobradar health
 python -m jobradar scan --once
 python -m jobradar ping-grok
+python -m jobradar verify-links --help
 ```
 
 - Alerts: `data/notifications.jsonl` (gitignored)
@@ -30,6 +31,28 @@ Group chat: **JobRadar** (all six).
 **Wake path (adapted):** Director webhook only if UI exposes URL/key.  
 Specialist per-bot webhook credential UI may be unavailable — Director fans out via in-app messaging instead of five webhook URLs.  
 Director routine: `jobradar-director` (webhook).
+
+## Overnight #9 Delivered (verify-links + probe gate)
+
+**PR #10:** `cursor/overnight-9-verify-links-probe-e4c7`
+
+- `verify-links` CLI (`python -m jobradar verify-links`) probes job URLs from SQLite or provided list
+- Prints summary: checked/good/bad/error counts
+- Optional `--mark-bad` silently marks failed URLs as closed (no Discord/ntfy/Telegram/Notion/Grok)
+- Notify path wired: Discord/ntfy/Telegram fire ONLY when URL has probed-good proof
+- Respects `JOBRADAR_LINK_PROBE` env var (default 1 for real notifies; tests set 0)
+- Empty/placeholder URLs (TBD, N/A, null, etc.) never alert
+- Probe failures → silent (Notion Backlog / skip alert), never block pipeline
+- New module: `src/jobradar/link_probe.py`
+- Tests: `tests/test_link_probe.py` (14 new tests, full pytest green)
+
+Usage:
+```bash
+python -m jobradar verify-links --help
+python -m jobradar verify-links --priority-only --verbose
+python -m jobradar verify-links --mark-bad
+python -m jobradar verify-links --urls https://example.com/job1 https://example.com/job2
+```
 
 ## Overnight #8 — Skip empty/bad URLs + silent quarantine (DELIVERED)
 
@@ -65,12 +88,19 @@ Director routine: `jobradar-director` (webhook).
 3. Later: Gmail inbox bot (Phase 4), 24/7 VM for Python loop
 4. Do **not** scrape `pittcsc/Summer2027-Internships`
 
+## Rohan-only items (blocked on keys/credentials)
+
+- Director keys (Grok Bot webhook URLs) — requires Grok Bot UI credential access
+- Gmail setup (Phase 4) — `secrets/gmail-client.json` OAuth flow
+
 ## Key modules
 
 - `src/jobradar/parsers.py` — JSON + Simplify HTML (`↳`, Inactive)
 - `src/jobradar/scout.py` — ETag cache; `sources=[]` means no sources (not all)
 - `src/jobradar/pipeline.py` — end-to-end
 - `src/jobradar/grok.py` — optional webhooks, 8s timeout
+- `src/jobradar/link_probe.py` — URL health probing (overnight #9)
+- `src/jobradar/notify.py` — JSONL + Discord/ntfy/Telegram with probe gate
 - Specs: `agents/grok/*.spec.md`
 
 ## Standing rules

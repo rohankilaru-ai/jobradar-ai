@@ -21,6 +21,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
+  "respx>=0.21",
+  "pytest-mock>=3.12",
 ]
 
 [project.scripts]

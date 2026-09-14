@@ -17,6 +17,7 @@ from urllib.parse import quote, urlparse
 import httpx
 
 from jobradar.db import Database
+from jobradar.link_probe import is_placeholder_url
 from jobradar.models import JobRecord
 
 log = logging.getLogger("jobradar.notify")
@@ -219,6 +220,8 @@ def job_notify_block_reason(job: JobRecord) -> str | None:
     url = sanitize_job_url(job.url)
     if not url:
         return "empty URL"
+    if is_placeholder_url(url):
+        return f"placeholder URL: {url[:80]}"
     
     url_lower = url.lower()
     if "example.com" in url_lower or "example.org" in url_lower:

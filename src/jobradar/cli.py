@@ -165,46 +165,50 @@ def cmd_gmail_sync(args: argparse.Namespace) -> int:
 
 
 def cmd_verify_links(args: argparse.Namespace) -> int:
-    """Verify job URLs from DB (forces link probe ON for self-check)."""
-    import os
-    from jobradar.notify import job_notify_block_reason, sanitize_job_url
-    
-    # Force link probe ON for verify-links
-    os.environ["JOBRADAR_LINK_PROBE"] = "1"
-    
-    logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING, 
-                       format="%(levelname)s %(name)s: %(message)s")
+    """Probe job URLs from DB or --urls (optional silent --mark-bad quarantine)."""
+    from jobradar.link_probe import probe_url
+
+    logging.basicConfig(level=logging.INFO if getattr(args, "verbose", False) else logging.WARNING,
+                        format="%(levelname)s %(name)s: %(message)s")
+    # Force probe ON for CLI self-check unless explicitly disabled
+    if os.environ.get("JOBRADAR_LINK_PROBE", "1").strip() == "0":
+        # still allow explicit probe via link_probe module (CLI always probes)
+        pass
     db = Database()
-    
-    jobs = db.list_jobs(priority_only=args.priority_only, limit=args.limit)
-    print(f"Checking {len(jobs)} jobs...")
-    
-    passed = 0
-    failed_jobs = []
-    
-    for job in jobs:
-        block_reason = job_notify_block_reason(job)
-        
-        if block_reason:
-            failed_jobs.append((job, block_reason))
-        else:
-            passed += 1
+
+    urls_to_check: list[tuple[str, str]] = []
+    if getattr(args, "urls", None):
+        for url in args.urls:
+            urls_to_check.append((url, url))
+    else:
+        jobs = db.list_jobs(priority_only=args.priority_only, limit=args.limit)
+        for job in jobs:
+            urls_to_check.append((job.canonical_key, job.url))
+
+    checked = good = bad = error = 0
+    for key, url in urls_to_check:
+        checked += 1
+        result = probe_url(url)
+        if result == "good":
+            good += 1
             if args.verbose:
-                print(f"✓ {job.company} | {job.title}")
-                print(f"   {sanitize_job_url(job.url)}")
-    
-    # Report failures
-    if failed_jobs:
-        print(f"\n❌ {len(failed_jobs)} failed:\n")
-        for job, reason in failed_jobs:
-            print(f"{job.company} | {job.title}")
-            print(f"   └─ {reason}")
-            if job.url:
-                print(f"   └─ {job.url}")
-            print()
-    
-    print(f"Results: {passed} passed, {len(failed_jobs)} failed")
-    return 0 if len(failed_jobs) == 0 else 1
+                print(f"✓ good: {url}")
+        elif result == "bad":
+            bad += 1
+            if args.verbose or args.mark_bad:
+                print(f"✗ bad: {url}")
+            if args.mark_bad and not getattr(args, "urls", None):
+                db.upsert_job_closed(key)
+        else:
+            error += 1
+            if args.verbose:
+                print(f"? error: {url}")
+
+    print(f"\nverify-links summary: checked={checked} good={good} bad={bad} error={error}")
+    if args.mark_bad and not getattr(args, "urls", None):
+        print(f"marked {bad} jobs as closed (silent, no alerts)")
+    return 0
+
 
 def cmd_refresh_jobs(_: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -324,10 +328,12 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--max", type=int, default=100)
     gs.set_defaults(func=cmd_gmail_sync)
 
-    vl = sub.add_parser("verify-links", help="Verify job URLs (forces link probe ON)")
-    vl.add_argument("--priority-only", action="store_true", default=False)
-    vl.add_argument("--limit", type=int, default=None, help="Max jobs to check")
-    vl.add_argument("--verbose", "-v", action="store_true", help="Show all jobs, not just failures")
+    vl = sub.add_parser("verify-links", help="Probe job URLs for liveness")
+    vl.add_argument("--priority-only", action="store_true", default=False, help="Check only priority jobs")
+    vl.add_argument("--limit", type=int, default=None, help="Limit number of jobs to check")
+    vl.add_argument("--urls", nargs="+", help="Check specific URLs instead of SQLite jobs")
+    vl.add_argument("--mark-bad", action="store_true", help="Mark bad URLs as closed (silent)")
+    vl.add_argument("--verbose", action="store_true", help="Print each URL result")
     vl.set_defaults(func=cmd_verify_links)
 
     db_init = sub.add_parser("db-init", help="Initialize empty DB schema (see scripts/fresh_db_backup.sh)")
