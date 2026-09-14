@@ -28,6 +28,15 @@ class PipelineStats:
     seed_mode: bool = False
 
 
+@dataclass
+class RefreshStats:
+    scanned: int = 0
+    matched: int = 0
+    rewritten: int = 0
+    skipped: int = 0
+    source_errors: list[str] = field(default_factory=list)
+
+
 def run_scan(
     db: Database | None = None,
     sources: list[Source] | None = None,
@@ -87,4 +96,55 @@ def run_scan(
                     notion_mod.upsert_job(stored, db=db, status=notion_status)
                 except Exception as exc:
                     log.warning("notion upsert failed: %s", exc)
+    return stats
+
+
+def refresh_jobs(
+    db: Database | None = None,
+    sources: list[Source] | None = None,
+) -> RefreshStats:
+    """Silent job field refresh: re-scout sources, update existing jobs, never notify."""
+    db = db or Database()
+    stats = RefreshStats()
+    results: list[ScoutResult] = scout_all(db, sources=sources)
+    seen_in_pass: list[JobRecord] = []
+
+    for result in results:
+        if result.error:
+            stats.source_errors.append(f"{result.source}: {result.error}")
+            continue
+        if result.not_modified:
+            continue
+        for job in result.jobs:
+            stats.scanned += 1
+            if not should_keep(job):
+                stats.skipped += 1
+                continue
+            job = enrich(job)
+            dup = find_duplicate(job, seen_in_pass)
+            if dup is not None:
+                job.canonical_key = dup.canonical_key
+                job.sources = list(dict.fromkeys([*dup.sources, *job.sources]))
+            
+            existing_job = db.get_job(job.canonical_key)
+            if existing_job is None:
+                stats.skipped += 1
+                continue
+            
+            stats.matched += 1
+            
+            needs_rewrite = (
+                existing_job.company != job.company
+                or existing_job.title != job.title
+                or existing_job.location != job.location
+                or existing_job.url != job.url
+            )
+            
+            if needs_rewrite:
+                stored, _ = db.upsert_job(job)
+                stats.rewritten += 1
+                seen_in_pass.append(stored)
+            else:
+                seen_in_pass.append(existing_job)
+    
     return stats

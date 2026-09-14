@@ -22,7 +22,7 @@ from jobradar.notify import (
     send_telegram,
     telegram_configured,
 )
-from jobradar.pipeline import run_scan
+from jobradar.pipeline import refresh_jobs, run_scan
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 load_dotenv()
@@ -203,6 +203,19 @@ def cmd_verify_links(args: argparse.Namespace) -> int:
     print(f"Results: {passed} passed, {len(failed_jobs)} failed")
     return 0 if len(failed_jobs) == 0 else 1
 
+def cmd_refresh_jobs(_: argparse.Namespace) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    db = Database()
+    stats = refresh_jobs(db=db)
+    print(
+        f"refresh done scanned={stats.scanned} matched={stats.matched} "
+        f"rewritten={stats.rewritten} skipped={stats.skipped}"
+    )
+    if stats.source_errors:
+        for err in stats.source_errors:
+            print(f"source_error: {err}")
+    return 0
+
 
 def cmd_db_init(_: argparse.Namespace) -> int:
     """Initialize empty DB schema. Use scripts/fresh_db_backup.sh for safe resets."""
@@ -272,6 +285,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     db_init = sub.add_parser("db-init", help="Initialize empty DB schema (see scripts/fresh_db_backup.sh)")
     db_init.set_defaults(func=cmd_db_init)
+    refresh = sub.add_parser("refresh-jobs", help="Silent job field refresh (no notifications)")
+    refresh.set_defaults(func=cmd_refresh_jobs)
 
     return p
 

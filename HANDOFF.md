@@ -42,6 +42,8 @@ Director routine: `jobradar-director` (webhook).
 - Classify exclude-list tuning — PR #5 (partial)
 - ping-grok / Director empty-key hardening + safe DB refresh — PR #5 (this PR)
 
+- Silent job refresh CLI (`refresh-jobs`) — PR #8
+
 **Remaining (not yet merged):**
 1. Director `.env` keys wiring (by Rohan after specialist UI exposes webhook URLs)
 2. Optional: Twilio SMS + Discord webhook fine-tuning
