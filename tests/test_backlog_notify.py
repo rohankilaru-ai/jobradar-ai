@@ -492,10 +492,10 @@ def test_pipeline_no_notion_for_non_alert_jobs(tmp_path, monkeypatch):
         # NOT for the old_job which is outside the notify window
         assert mock_notion_upsert.call_count == 1
         
-        # Verify the Notion call was for the new job with STATUS_SEEN
+        # Verify the Notion call was for the new job with STATUS_BACKLOG
         call_args = mock_notion_upsert.call_args
         assert call_args[0][0].company == "NewCo"
-        assert call_args[1]["status"] == "Seen"
+        assert call_args[1]["status"] == "Backlog"
 
 
 def test_notion_posted_date_wiring():
