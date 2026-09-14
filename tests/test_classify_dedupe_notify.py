@@ -294,3 +294,72 @@ def test_pipeline_stores_old_jobs_without_notify(tmp_path, monkeypatch):
     assert stats.notified == 1
     assert db.was_notified(fresh.canonical_key) is True
     assert db.was_notified(old.canonical_key) is False
+
+
+def test_pipeline_no_duplicate_alert_on_tracking_param_change(tmp_path, monkeypatch):
+    """Same job with different tracking params should not trigger duplicate alert."""
+    from jobradar.scout import ScoutResult
+    from jobradar import pipeline as pipeline_mod
+
+    db = Database(tmp_path / "tracking.db")
+    notify_path = tmp_path / "notifications.jsonl"
+    
+    # Pre-seed so we are not in seed_mode
+    db.upsert_job(
+        JobRecord(company="Seed", title="SWE Intern", location="SF", 
+                 url="https://seed.com/jobs", sources=["seed"])
+    )
+    
+    now = datetime.now(timezone.utc)
+    
+    # Morning scan: Job with utm_source=aprameyak
+    morning_job = JobRecord(
+        company="Hudl",
+        title="Product Management Intern",
+        location="Remote",
+        url="https://hudl.com/careers/job/123?utm_source=aprameyak",
+        sources=["simplify"],
+        first_seen_at=now.isoformat(),
+    )
+    
+    def morning_scout(db_arg, sources=None):
+        return [ScoutResult(source="simplify", jobs=[morning_job], not_modified=False, error=None)]
+    
+    monkeypatch.setattr(pipeline_mod, "scout_all", morning_scout)
+    monkeypatch.setenv("JOBRADAR_NOTIFY_MOCK_PATH", str(notify_path))
+    
+    # First scan: should notify
+    stats1 = run_scan(db=db, sources=[])
+    assert stats1.new == 1
+    assert stats1.notified == 1
+    assert db.was_notified(morning_job.canonical_key) is True
+    
+    # Evening scan: Same job but with utm_source=Simplify&ref=Simplify
+    evening_job = JobRecord(
+        company="Hudl",
+        title="Product Management Intern",
+        location="Remote",
+        url="https://hudl.com/careers/job/123?utm_source=Simplify&ref=Simplify",
+        sources=["simplify"],
+        first_seen_at=now.isoformat(),
+    )
+    
+    def evening_scout(db_arg, sources=None):
+        return [ScoutResult(source="simplify", jobs=[evening_job], not_modified=False, error=None)]
+    
+    monkeypatch.setattr(pipeline_mod, "scout_all", evening_scout)
+    
+    # Second scan: should NOT notify (same job, just different tracking params)
+    stats2 = run_scan(db=db, sources=[])
+    
+    # Key assertions: canonical_key should be the same despite different URLs
+    assert morning_job.canonical_key == evening_job.canonical_key, \
+        f"canonical_key mismatch: {morning_job.canonical_key} != {evening_job.canonical_key}"
+    
+    # Should be recognized as duplicate (not new)
+    assert stats2.new == 0, f"Expected 0 new jobs, got {stats2.new}"
+    assert stats2.notified == 0, f"Expected 0 notifications, got {stats2.notified}"
+    
+    # Notification count should still be 1 (from morning scan only)
+    notification_lines = notify_path.read_text().strip().split("\n") if notify_path.exists() else []
+    assert len(notification_lines) == 1, f"Expected 1 notification, got {len(notification_lines)}"
