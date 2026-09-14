@@ -19,6 +19,7 @@ import httpx
 from jobradar.db import Database
 from jobradar.link_probe import is_placeholder_url
 from jobradar.models import JobRecord
+from jobradar.tier import classify_company_tier
 
 log = logging.getLogger("jobradar.notify")
 
@@ -478,14 +479,57 @@ def telegram_configured() -> bool:
     )
 
 
-def send_discord(text: str) -> str:
+def get_discord_webhook_url(tier: str) -> str:
+    """Get Discord webhook URL for the specified tier.
+    
+    Args:
+        tier: One of 'priority', 'fortune500', or 'other'
+    
+    Returns:
+        Webhook URL or empty string if not configured.
+        Falls back to DISCORD_WEBHOOK_URL if tier-specific URL not set.
+    """
+    # Tier-specific URLs
+    tier_env_vars = {
+        "priority": "DISCORD_WEBHOOK_PRIORITY",
+        "fortune500": ["DISCORD_WEBHOOK_FORTUNE500", "DISCORD_WEBHOOK_F500"],  # support both
+        "other": "DISCORD_WEBHOOK_OTHER",
+    }
+    
+    # Try tier-specific URL first
+    env_vars = tier_env_vars.get(tier, [])
+    if isinstance(env_vars, str):
+        env_vars = [env_vars]
+    
+    for env_var in env_vars:
+        url = (os.environ.get(env_var) or "").strip()
+        if url:
+            return url
+    
+    # Fallback to legacy DISCORD_WEBHOOK_URL for all tiers
+    return (os.environ.get("DISCORD_WEBHOOK_URL") or "").strip()
+
+
+def send_discord(text: str, *, tier: str = "other") -> str:
+    """Send Discord message to tier-specific webhook.
+    
+    Args:
+        text: Message content
+        tier: Company tier ('priority', 'fortune500', or 'other')
+    
+    Returns:
+        'ok' if sent, 'skipped' if not configured or during pytest
+    """
     # Safety: Never send to live Discord during pytest (even if DISCORD_WEBHOOK_URL is set)
     if os.environ.get("PYTEST_CURRENT_TEST"):
         log.debug("send_discord: blocked (PYTEST_CURRENT_TEST is set)")
         return "skipped"
-    url = (os.environ.get("DISCORD_WEBHOOK_URL") or "").strip()
+    
+    url = get_discord_webhook_url(tier)
     if not url:
+        log.debug("send_discord: no webhook URL for tier %s", tier)
         return "skipped"
+    
     resp = httpx.post(url, json={"content": text[:1900]}, timeout=8.0)
     if resp.status_code >= 400:
         raise RuntimeError(f"discord HTTP {resp.status_code}")
@@ -589,8 +633,11 @@ class Notifier:
             log.debug("Silent notification (JSONL only): %s", job.canonical_key)
             return True
 
+        # Determine company tier for Discord routing
+        company_tier = classify_company_tier(job.company)
+        
         try:
-            send_discord(payload)
+            send_discord(payload, tier=company_tier)
         except Exception as exc:
             log.warning("discord webhook failed: %s", exc)
         try:
