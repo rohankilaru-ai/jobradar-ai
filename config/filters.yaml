@@ -1,0 +1,25 @@
+include_keywords:
+  - software engineer
+  - software engineering
+  - data science
+  - data scientist
+  - machine learning
+  - ml engineer
+  - ai engineer
+  - ai research
+  - research engineer
+  - data engineer
+  - backend engineer
+  - platform engineer
+  - infrastructure engineer
+
+exclude_keywords:
+  - tax
+  - accounting
+  - nursing
+  - physician
+  - therapist
+  - lawyer
+  - sales representative
+
+minimum_relevance: 0.40

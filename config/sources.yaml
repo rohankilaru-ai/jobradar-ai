@@ -1,0 +1,33 @@
+github_json:
+  - name: aprameyak-2027
+    url: https://raw.githubusercontent.com/aprameyak/2027-tech-jobs/main/listings.json
+    kind: aprameyak
+  - name: dreamwork-2027
+    url: https://raw.githubusercontent.com/dreamworkhq/Tech-Internships-2027/main/data/listings.json
+    kind: dreamwork
+  - name: applyguy-2027
+    url: https://raw.githubusercontent.com/ApplyGuy/2027-Internships/main/data/internships.json
+    kind: applyguy
+
+github_html:
+  - name: simplify-summer-2027
+    url: https://raw.githubusercontent.com/SimplifyJobs/Summer2027-Internships/dev/README.md
+    kind: simplify
+  - name: simplify-offseason-2027
+    url: https://raw.githubusercontent.com/SimplifyJobs/Summer2027-Internships/dev/README-Off-Season.md
+    kind: simplify
+  - name: simplify-newgrad
+    url: https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/README.md
+    kind: simplify
+
+github_markdown:
+  - name: vansh-summer-2027
+    url: https://raw.githubusercontent.com/vanshb03/Summer2027-Internships/dev/README.md
+    kind: markdown
+  - name: speedyapply-swe-2027
+    url: https://raw.githubusercontent.com/speedyapply/2027-SWE-College-Jobs/main/README.md
+    kind: markdown
+
+skip:
+  - pittcsc/Summer2027-Internships  # fork of Simplify
+  - github.com/topics/job-board     # software, not listings

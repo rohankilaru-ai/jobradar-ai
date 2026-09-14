@@ -46,11 +46,11 @@ SOURCES: list[Source] = [
     Source(
         name="vansh-summer-2027",
         url="https://raw.githubusercontent.com/vanshb03/Summer2027-Internships/dev/README.md",
-        kind="simplify",
+        kind="markdown",
     ),
     Source(
         name="speedyapply-swe-2027",
         url="https://raw.githubusercontent.com/speedyapply/2027-SWE-College-Jobs/main/README.md",
-        kind="simplify",
+        kind="markdown",
     ),
 ]

@@ -1,0 +1,11 @@
+sms:
+  enabled: true
+
+discord:
+  enabled: true
+
+notification_priority:
+  internship: high
+  new_grad: medium
+
+cooldown_minutes: 0

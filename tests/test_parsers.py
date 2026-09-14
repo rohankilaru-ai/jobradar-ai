@@ -4,6 +4,7 @@ from jobradar.parsers import (
     parse_applyguy_json,
     parse_aprameyak_json,
     parse_dreamwork_json,
+    parse_markdown_table,
     parse_simplify_html,
 )
 
@@ -36,3 +37,11 @@ def test_simplify_html_inherit_and_inactive():
     child = next(j for j in jobs if "Research" in j.title)
     assert child.is_closed is True
     assert child.url.startswith("https://openai.com")
+
+
+def test_markdown_table_inherit_and_closed():
+    jobs = parse_markdown_table((FIX / "vansh_sample.md").read_text(), source="vansh")
+    assert [j.company for j in jobs] == ["OpenAI", "OpenAI", "Acme"]
+    research = next(j for j in jobs if "Research" in j.title)
+    assert research.is_closed is True
+    assert research.url.startswith("https://openai.com/careers/research")

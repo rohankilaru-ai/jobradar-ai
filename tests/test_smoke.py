@@ -20,6 +20,23 @@ def test_ping_grok(capsys):
     assert "skip" in capsys.readouterr().out.lower()
 
 
-def test_parser_has_commands():
+def test_test_discord_skips(capsys, monkeypatch):
+    monkeypatch.delenv("DISCORD_WEBHOOK_URL", raising=False)
+    assert main(["test-discord"]) == 0
+    assert "skipped" in capsys.readouterr().out.lower()
+
+
+def test_parser_has_product_commands():
     p = build_parser()
-    assert p.prog == "jobradar"
+    names = {a.dest for a in p._get_positional_actions() if hasattr(a, "choices") or True}
+    help_txt = p.format_help()
+    for cmd in (
+        "test-discord",
+        "test-ntfy",
+        "test-telegram",
+        "test-notion",
+        "gmail-auth",
+        "gmail-sync",
+        "notion-backfill",
+    ):
+        assert cmd in help_txt

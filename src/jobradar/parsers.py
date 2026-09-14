@@ -196,6 +196,81 @@ def parse_simplify_html(raw: str, source: str = "simplify-summer-2027") -> list[
     return out
 
 
+_MD_LINK = re.compile(r"\[([^\]]+)\]\([^)]+\)")
+_MD_URL = re.compile(r"https?://[^\s)<>]+")
+_PIPE_ROW = re.compile(r"^\s*\|(.+)\|\s*$")
+
+
+def _strip_md(text: str) -> str:
+    text = _MD_LINK.sub(r"\1", text or "")
+    text = text.replace("**", "").replace("*", "")
+    return _WS.sub(" ", text).strip()
+
+
+def parse_markdown_table(raw: str, source: str = "markdown") -> list[JobRecord]:
+    """Parse Vansh / SpeedyApply pipe tables. Inherit company on ↳ rows."""
+    text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else raw
+    out: list[JobRecord] = []
+    last_company = ""
+    header_idx: dict[str, int] | None = None
+    for line in text.splitlines():
+        m = _PIPE_ROW.match(line)
+        if not m:
+            continue
+        cells = [c.strip() for c in m.group(1).split("|")]
+        if not cells or all(set(c) <= set("-: ") for c in cells):
+            continue
+        lower = [c.lower() for c in cells]
+        if header_idx is None and any("company" in c for c in lower):
+            header_idx = {}
+            for i, name in enumerate(lower):
+                if "company" in name:
+                    header_idx["company"] = i
+                elif name in {"role", "position", "title"} or "role" in name:
+                    header_idx["title"] = i
+                elif "location" in name:
+                    header_idx["location"] = i
+                elif any(k in name for k in ("application", "link", "posting", "url")):
+                    header_idx["url"] = i
+            continue
+        if header_idx is None:
+            continue
+        ci = header_idx.get("company", 0)
+        ti = header_idx.get("title", 1)
+        li = header_idx.get("location", 2)
+        ui = header_idx.get("url")
+        company_raw = _strip_md(cells[ci] if ci < len(cells) else "")
+        title = _strip_md(cells[ti] if ti < len(cells) else "")
+        location = _strip_md(cells[li] if li < len(cells) else "")
+        url_cell = cells[ui] if ui is not None and ui < len(cells) else ""
+        if not title:
+            continue
+        if company_raw.startswith("↳") or company_raw == "↳":
+            company = last_company
+        else:
+            company = company_raw
+            last_company = company
+        if not company:
+            continue
+        url = ""
+        found = _MD_URL.search(url_cell)
+        if found:
+            url = found.group(0).rstrip(").,")
+        is_closed = "🔒" in title or "closed" in title.lower()
+        out.append(
+            JobRecord(
+                company=company,
+                title=title.replace("🔒", "").strip(),
+                location=location,
+                url=url,
+                sources=[source],
+                snippet=f"{title} @ {company}",
+                is_closed=is_closed,
+            )
+        )
+    return out
+
+
 def parse_source(kind: str, raw: str | bytes, source_name: str | None = None) -> list[JobRecord]:
     kind = kind.lower()
     if kind in {"aprameyak", "aprameyak-json"}:
@@ -204,7 +279,10 @@ def parse_source(kind: str, raw: str | bytes, source_name: str | None = None) ->
         return parse_dreamwork_json(raw, source_name or "dreamwork-2027")
     if kind in {"applyguy", "applyguy-json"}:
         return parse_applyguy_json(raw, source_name or "applyguy-2027")
-    if kind in {"simplify", "simplify-html", "markdown", "html"}:
+    if kind in {"markdown", "markdown_table", "vansh", "speedyapply"}:
+        text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else raw
+        return parse_markdown_table(text, source_name or "markdown")
+    if kind in {"simplify", "simplify-html", "html"}:
         text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else raw
         return parse_simplify_html(text, source_name or "simplify-summer-2027")
     raise ValueError(f"unknown parser kind: {kind}")

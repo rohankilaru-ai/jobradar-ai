@@ -3,5 +3,7 @@ services:
     build: .
     volumes:
       - ./data:/app/data
-      - ./.env:/app/.env:ro
     restart: unless-stopped
+    environment:
+      JOBRADAR_DB_PATH: data/jobradar.db
+      JOBRADAR_NOTIFY_MOCK_PATH: data/notifications.jsonl

@@ -62,15 +62,24 @@ CREATE TABLE IF NOT EXISTS fetch_cache (
 CREATE TABLE IF NOT EXISTS emails (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   message_id TEXT UNIQUE,
+  thread_id TEXT,
   subject TEXT,
+  from_addr TEXT,
   classification TEXT,
+  canonical_key TEXT,
   created_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS applications (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  canonical_key TEXT,
+  canonical_key TEXT UNIQUE,
+  company TEXT,
+  title TEXT,
   status TEXT,
+  date_applied TEXT,
+  last_update TEXT,
+  gmail_thread_id TEXT,
+  notion_page_id TEXT,
   created_at TEXT
 );
 """
@@ -97,6 +106,32 @@ class Database:
     def _init_schema(self) -> None:
         with self._connect() as conn:
             conn.executescript(SCHEMA)
+            self._migrate(conn)
+            conn.commit()
+
+    def _migrate(self, conn: sqlite3.Connection) -> None:
+        def cols(table: str) -> set[str]:
+            return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+
+        app = cols("applications")
+        for name, typ in (
+            ("company", "TEXT"),
+            ("title", "TEXT"),
+            ("date_applied", "TEXT"),
+            ("last_update", "TEXT"),
+            ("gmail_thread_id", "TEXT"),
+            ("notion_page_id", "TEXT"),
+        ):
+            if name not in app:
+                conn.execute(f"ALTER TABLE applications ADD COLUMN {name} {typ}")
+        em = cols("emails")
+        for name, typ in (
+            ("thread_id", "TEXT"),
+            ("from_addr", "TEXT"),
+            ("canonical_key", "TEXT"),
+        ):
+            if name not in em:
+                conn.execute(f"ALTER TABLE emails ADD COLUMN {name} {typ}")
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
@@ -239,3 +274,151 @@ class Database:
     def count_jobs(self) -> int:
         with self.connection() as conn:
             return int(conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0])
+
+    def record_agent_run(self, agent: str, key: str | None, status: str, detail: str = "") -> None:
+        from datetime import datetime, timezone
+
+        ts = datetime.now(timezone.utc).isoformat()
+        with self.connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO agent_runs (agent, canonical_key, status, detail, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (agent, key, status, detail, ts),
+            )
+
+    def list_jobs(self, *, priority_only: bool = False, limit: int | None = None) -> list[JobRecord]:
+        sql = "SELECT canonical_key FROM jobs"
+        params: list = []
+        if priority_only:
+            sql += " WHERE priority = 1"
+        sql += " ORDER BY last_seen_at DESC"
+        if limit:
+            sql += " LIMIT ?"
+            params.append(limit)
+        with self.connection() as conn:
+            keys = [r[0] for r in conn.execute(sql, params)]
+        out: list[JobRecord] = []
+        for key in keys:
+            job = self.get_job(key)
+            if job:
+                out.append(job)
+        return out
+
+    def upsert_application(
+        self,
+        *,
+        canonical_key: str,
+        company: str = "",
+        title: str = "",
+        status: str = "Seen",
+        date_applied: str | None = None,
+        gmail_thread_id: str | None = None,
+        notion_page_id: str | None = None,
+    ) -> None:
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM applications WHERE canonical_key = ?",
+                (canonical_key,),
+            ).fetchone()
+            if row is None:
+                conn.execute(
+                    """
+                    INSERT INTO applications (
+                      canonical_key, company, title, status, date_applied,
+                      last_update, gmail_thread_id, notion_page_id, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        canonical_key,
+                        company,
+                        title,
+                        status,
+                        date_applied,
+                        now,
+                        gmail_thread_id,
+                        notion_page_id,
+                        now,
+                    ),
+                )
+                return
+            conn.execute(
+                """
+                UPDATE applications SET
+                  company = COALESCE(NULLIF(?, ''), company),
+                  title = COALESCE(NULLIF(?, ''), title),
+                  status = COALESCE(NULLIF(?, ''), status),
+                  date_applied = COALESCE(?, date_applied),
+                  last_update = ?,
+                  gmail_thread_id = COALESCE(?, gmail_thread_id),
+                  notion_page_id = COALESCE(?, notion_page_id)
+                WHERE canonical_key = ?
+                """,
+                (
+                    company,
+                    title,
+                    status,
+                    date_applied,
+                    now,
+                    gmail_thread_id,
+                    notion_page_id,
+                    canonical_key,
+                ),
+            )
+
+    def get_application(self, canonical_key: str) -> dict | None:
+        with self.connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM applications WHERE canonical_key = ?",
+                (canonical_key,),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def find_job_by_company(self, company: str) -> JobRecord | None:
+        needle = (company or "").strip().lower()
+        if len(needle) < 3:
+            return None
+        with self.connection() as conn:
+            rows = conn.execute("SELECT canonical_key, company FROM jobs").fetchall()
+        for row in rows:
+            name = (row["company"] or "").lower()
+            if needle in name or name in needle:
+                return self.get_job(row["canonical_key"])
+        return None
+
+    def record_email(
+        self,
+        *,
+        message_id: str,
+        thread_id: str = "",
+        subject: str = "",
+        from_addr: str = "",
+        classification: str = "",
+        canonical_key: str | None = None,
+    ) -> bool:
+        """Insert email. Returns False if already seen."""
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connection() as conn:
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO emails (
+                      message_id, thread_id, subject, from_addr,
+                      classification, canonical_key, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (message_id, thread_id, subject, from_addr, classification, canonical_key, now),
+                )
+                return True
+            except sqlite3.IntegrityError:
+                return False
+
+    def count_applications(self) -> int:
+        with self.connection() as conn:
+            return int(conn.execute("SELECT COUNT(*) FROM applications").fetchone()[0])

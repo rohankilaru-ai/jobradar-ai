@@ -34,3 +34,26 @@ def test_pipeline_empty_sources(tmp_path):
     db = Database(tmp_path / "p.db")
     stats = run_scan(db=db, sources=[])
     assert stats.fetched == 0
+    assert stats.seed_mode is True
+    assert stats.notified == 0
+
+
+def test_pipeline_seeds_first_scan_then_alerts(tmp_path):
+    from jobradar.models import JobRecord
+    from jobradar.notify import MockNotifier
+
+    db = Database(tmp_path / "s.db")
+    job = JobRecord(
+        company="Stripe",
+        title="Software Engineer Intern",
+        location="SF",
+        url="https://example.com/stripe-intern",
+        sources=["test"],
+    )
+    stored, is_new = db.upsert_job(job)
+    assert is_new is True
+    stats = run_scan(db=db, sources=[])
+    assert stats.seed_mode is False
+    n = MockNotifier(path=tmp_path / "n.jsonl", db=db)
+    assert n.notify(stored) is True
+    assert n.notify(stored) is False

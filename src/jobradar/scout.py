@@ -31,7 +31,7 @@ def _now() -> str:
 
 def fetch_source(source: Source, db: Database, client: httpx.Client | None = None) -> ScoutResult:
     own = client is None
-    client = client or httpx.Client(timeout=30.0, follow_redirects=True)
+    client = client or httpx.Client(timeout=60.0, follow_redirects=True)
     try:
         etag = None
         with db.connection() as conn:
@@ -58,7 +58,7 @@ def fetch_source(source: Source, db: Database, client: httpx.Client | None = Non
                   body=excluded.body,
                   fetched_at=excluded.fetched_at
                 """,
-                (source.url, new_etag, body, _now()),
+                (source.url, new_etag, "", _now()),
             )
         jobs = parse_source(source.kind, body, source.name)
         return ScoutResult(source=source.name, jobs=jobs, status=resp.status_code)
@@ -73,7 +73,7 @@ def fetch_source(source: Source, db: Database, client: httpx.Client | None = Non
 def scout_all(db: Database, sources: list[Source] | None = None) -> list[ScoutResult]:
     sources = SOURCES if sources is None else sources
     results: list[ScoutResult] = []
-    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+    with httpx.Client(timeout=60.0, follow_redirects=True) as client:
         for src in sources:
             results.append(fetch_source(src, db, client=client))
     return results
