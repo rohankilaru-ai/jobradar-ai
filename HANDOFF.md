@@ -31,6 +31,21 @@ Group chat: **JobRadar** (all six).
 Specialist per-bot webhook credential UI may be unavailable — Director fans out via in-app messaging instead of five webhook URLs.  
 Director routine: `jobradar-director` (webhook).
 
+## Overnight #8 — Skip empty/bad URLs + silent quarantine (DELIVERED)
+
+**Issue:** Production alerts (Discord/ntfy/Telegram) received empty or placeholder URLs (example.com, localhost, etc.) from parser/DB rows.
+
+**Fixed:**
+- **Ingest filter:** Pipeline now skips jobs with empty/placeholder URLs before upsert/notify. No Discord/ntfy/Telegram/Grok for bad URLs.
+- **Quarantine CLI:** `python -m jobradar quarantine-bad-urls` scans existing SQLite jobs and marks bad URLs as closed (silent, no alerts, no Notion, no Grok).
+  - Optional probe: set `JOBRADAR_LINK_PROBE=1` to HEAD-probe URLs (default off).
+  - Tests mock HTTP; production can enable probe after testing.
+- **Tests:** Full pytest coverage for URL validation, ingest skip, and quarantine paths.
+
+**Remaining work (Rohan-only):**
+- Director webhook key wiring (Grok Bot app UI may not expose per-specialist keys yet)
+- No new Gmail work; inbox bot is Phase 4
+
 ## Next (MVP → production)
 
 **Delivered in open overnight PRs #1–#5:**
