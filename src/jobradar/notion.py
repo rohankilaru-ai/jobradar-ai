@@ -50,6 +50,8 @@ def page_properties(job: JobRecord, status: str = STATUS_SEEN, gmail_thread: str
         "First seen": _date_prop(job.first_seen_at),
         "Last update": _date_prop(job.last_seen_at),
     }
+    if job.posted_at:
+        props["Posted"] = _date_prop(job.posted_at)
     if job.url:
         props["URL"] = {"url": job.url}
     if gmail_thread:

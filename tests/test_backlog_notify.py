@@ -496,3 +496,42 @@ def test_pipeline_no_notion_for_non_alert_jobs(tmp_path, monkeypatch):
         call_args = mock_notion_upsert.call_args
         assert call_args[0][0].company == "NewCo"
         assert call_args[1]["status"] == "Seen"
+
+
+def test_notion_posted_date_wiring():
+    """Notion Posted property should be populated when job.posted_at is set."""
+    from jobradar.notion import page_properties
+    
+    # Job with posted_at should include Posted in properties
+    job_with_date = JobRecord(
+        company="TestCo",
+        title="SWE Intern",
+        location="SF",
+        url="https://testco.com/jobs/123",
+        posted_at="2026-09-01",
+    )
+    props = page_properties(job_with_date, status="Seen")
+    assert "Posted" in props
+    assert props["Posted"]["date"]["start"] == "2026-09-01"
+    
+    # Job without posted_at should not include Posted
+    job_without_date = JobRecord(
+        company="TestCo",
+        title="SWE Intern",
+        location="SF",
+        url="https://testco.com/jobs/456",
+    )
+    props = page_properties(job_without_date, status="Seen")
+    assert "Posted" not in props
+    
+    # Job with full ISO timestamp should extract date portion
+    job_with_timestamp = JobRecord(
+        company="TestCo",
+        title="SWE Intern",
+        location="SF",
+        url="https://testco.com/jobs/789",
+        posted_at="2026-09-15T10:30:00Z",
+    )
+    props = page_properties(job_with_timestamp, status="Seen")
+    assert "Posted" in props
+    assert props["Posted"]["date"]["start"] == "2026-09-15"

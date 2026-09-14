@@ -58,6 +58,18 @@ EXCLUDE = (
     "graphic design intern", "photographer", "videographer", "artist",
 )
 
+# New-grad / full-time signals (exclude unless also clearly an intern role)
+NEWGRAD_SIGNALS = (
+    "new grad", "new-grad", "newgrad", "new graduate", "recent graduate",
+    "university graduate", "college graduate", "full-time", "full time",
+    "entry level", "entry-level",
+)
+
+# Intern signals that override new-grad exclusion
+INTERN_SIGNALS = (
+    "intern", "internship", "co-op", "coop", "summer", "spring", "fall", "winter",
+)
+
 PRIORITY_COMPANIES = {
     "openai", "anthropic", "databricks", "snowflake", "nvidia", "scale ai",
     "perplexity", "meta", "google", "microsoft", "apple", "tesla", "palantir",
@@ -72,6 +84,15 @@ def _blob(job: JobRecord) -> str:
 
 def should_keep(job: JobRecord) -> bool:
     text = _blob(job)
+    
+    # Check for new-grad / full-time signals
+    has_newgrad = any(x in text for x in NEWGRAD_SIGNALS)
+    has_intern = any(x in text for x in INTERN_SIGNALS)
+    
+    # Exclude new-grad roles unless they're also clearly internships
+    if has_newgrad and not has_intern:
+        return False
+    
     if any(x in text for x in EXCLUDE):
         # still keep if strong include signal (e.g. "tax" false positive in other context)
         if any(x in text for x in ("software", "engineer", "machine learning", "data science")):

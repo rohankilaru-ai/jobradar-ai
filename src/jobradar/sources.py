@@ -38,11 +38,12 @@ SOURCES: list[Source] = [
         url="https://raw.githubusercontent.com/SimplifyJobs/Summer2027-Internships/dev/README-Off-Season.md",
         kind="simplify",
     ),
-    Source(
-        name="simplify-newgrad",
-        url="https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/README.md",
-        kind="simplify",
-    ),
+    # Disabled: Rohan targets internships only, not new-grad roles
+    # Source(
+    #     name="simplify-newgrad",
+    #     url="https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/README.md",
+    #     kind="simplify",
+    # ),
     Source(
         name="vansh-summer-2027",
         url="https://raw.githubusercontent.com/vanshb03/Summer2027-Internships/dev/README.md",
