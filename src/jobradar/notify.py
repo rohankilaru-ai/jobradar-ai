@@ -11,6 +11,7 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from email.header import Header
 from urllib.parse import quote
 
 import httpx
@@ -264,6 +265,16 @@ def send_discord(text: str) -> str:
     return "ok"
 
 
+def _ntfy_header_value(value: str, max_len: int = 200) -> str:
+    """Encode ntfy header values as ASCII (RFC 2047) so em-dashes etc. do not break."""
+    value = (value or "")[:max_len]
+    try:
+        value.encode("ascii")
+        return value
+    except UnicodeEncodeError:
+        return Header(value, "utf-8").encode()
+
+
 def send_ntfy(text: str, *, priority: bool = False, title: str = "JobRadar") -> str:
     """Free phone push via ntfy.sh (or self-hosted NTFY_SERVER)."""
     topic = (os.environ.get("NTFY_TOPIC") or "").strip()
@@ -272,7 +283,7 @@ def send_ntfy(text: str, *, priority: bool = False, title: str = "JobRadar") -> 
     server = (os.environ.get("NTFY_SERVER") or "https://ntfy.sh").strip().rstrip("/")
     url = f"{server}/{quote(topic, safe='')}"
     headers = {
-        "Title": title[:200],
+        "Title": _ntfy_header_value(title, 200),
         "Priority": "5" if priority else "3",
         "Tags": "briefcase",
     }
