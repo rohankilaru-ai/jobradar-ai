@@ -262,14 +262,14 @@ def test_pipeline_stores_old_jobs_without_notify(tmp_path, monkeypatch):
     db = Database(tmp_path / "old.db")
     # Pre-seed so we are not in seed_mode
     db.upsert_job(
-        JobRecord(company="Seed", title="SWE Intern", location="SF", url="https://ex/seed", sources=["seed"])
+        JobRecord(company="Seed", title="SWE Intern", location="SF", url="https://seed.com/jobs", sources=["seed"])
     )
     now = datetime.now(timezone.utc)
     old = JobRecord(
         company="Jane Street",
         title="Software Engineer Intern",
         location="NYC",
-        url="https://ex/js-old",
+        url="https://janestreet.com/join/position/abc",
         sources=["test"],
         first_seen_at=(now - timedelta(days=30)).isoformat(),
     )
@@ -277,7 +277,7 @@ def test_pipeline_stores_old_jobs_without_notify(tmp_path, monkeypatch):
         company="Stripe",
         title="Software Engineer Intern",
         location="SF",
-        url="https://ex/stripe-new",
+        url="https://stripe.com/jobs/listing/swe-intern",
         sources=["test"],
         first_seen_at=now.isoformat(),
     )
