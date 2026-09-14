@@ -10,7 +10,7 @@ from jobradar.db import Database
 from jobradar.dedupe import find_duplicate
 from jobradar.director import enqueue as director_enqueue
 from jobradar.models import JobRecord
-from jobradar.notify import Notifier
+from jobradar.notify import Notifier, within_notify_window
 from jobradar.scout import ScoutResult, scout_all
 from jobradar.sources import Source
 
@@ -68,7 +68,7 @@ def run_scan(
                 continue
             if stored.is_closed:
                 continue
-            if is_new:
+            if is_new and within_notify_window(stored):
                 if notifier.notify(stored):
                     stats.notified += 1
                     try:

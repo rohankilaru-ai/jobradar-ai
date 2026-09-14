@@ -1,8 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
 from jobradar.classify import is_priority_company, should_keep
 from jobradar.db import Database
 from jobradar.dedupe import is_duplicate
 from jobradar.models import JobRecord
-from jobradar.notify import MockNotifier, format_alert
+from jobradar.notify import MockNotifier, format_alert, within_notify_window
 from jobradar.pipeline import run_scan
 
 
@@ -224,3 +226,71 @@ def test_pipeline_seeds_first_scan_then_alerts(tmp_path):
     n = MockNotifier(path=tmp_path / "n.jsonl", db=db)
     assert n.notify(stored) is True
     assert n.notify(stored) is False
+
+
+def test_within_notify_window_14_days():
+    now = datetime(2026, 9, 14, tzinfo=timezone.utc)
+    fresh = JobRecord(
+        company="A",
+        title="SWE Intern",
+        url="https://ex/fresh",
+        first_seen_at=(now - timedelta(days=3)).isoformat(),
+    )
+    stale = JobRecord(
+        company="B",
+        title="SWE Intern",
+        url="https://ex/stale",
+        first_seen_at=(now - timedelta(days=20)).isoformat(),
+    )
+    assert within_notify_window(fresh, now=now) is True
+    assert within_notify_window(stale, now=now) is False
+    # boundary: exactly 14 days still notifies
+    edge = JobRecord(
+        company="C",
+        title="SWE Intern",
+        url="https://ex/edge",
+        first_seen_at=(now - timedelta(days=14)).isoformat(),
+    )
+    assert within_notify_window(edge, now=now) is True
+
+
+def test_pipeline_stores_old_jobs_without_notify(tmp_path, monkeypatch):
+    """Older-than-window jobs are persisted but never alerted."""
+    from jobradar.scout import ScoutResult
+    from jobradar import pipeline as pipeline_mod
+
+    db = Database(tmp_path / "old.db")
+    # Pre-seed so we are not in seed_mode
+    db.upsert_job(
+        JobRecord(company="Seed", title="SWE Intern", location="SF", url="https://seed.com/jobs", sources=["seed"])
+    )
+    now = datetime.now(timezone.utc)
+    old = JobRecord(
+        company="Jane Street",
+        title="Software Engineer Intern",
+        location="NYC",
+        url="https://janestreet.com/join/position/abc",
+        sources=["test"],
+        first_seen_at=(now - timedelta(days=30)).isoformat(),
+    )
+    fresh = JobRecord(
+        company="Stripe",
+        title="Software Engineer Intern",
+        location="SF",
+        url="https://stripe.com/jobs/listing/swe-intern",
+        sources=["test"],
+        first_seen_at=now.isoformat(),
+    )
+
+    def fake_scout(db_arg, sources=None):
+        return [ScoutResult(source="test", jobs=[old, fresh], not_modified=False, error=None)]
+
+    monkeypatch.setattr(pipeline_mod, "scout_all", fake_scout)
+    monkeypatch.setenv("JOBRADAR_NOTIFY_MOCK_PATH", str(tmp_path / "notifications.jsonl"))
+    stats = run_scan(db=db, sources=[])
+    assert db.get_job(old.canonical_key) is not None
+    assert db.get_job(fresh.canonical_key) is not None
+    assert stats.new == 2
+    assert stats.notified == 1
+    assert db.was_notified(fresh.canonical_key) is True
+    assert db.was_notified(old.canonical_key) is False

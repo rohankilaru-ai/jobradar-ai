@@ -9,8 +9,9 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from email.header import Header
 from urllib.parse import quote
 
 import httpx
@@ -39,6 +40,38 @@ RECRUITING_HOSTS = {
     "fountain.com", "hire.fountain.com",
     "wd1.myworkdaysite.com", "wd5.myworkdaysite.com",
 }
+
+NOTIFY_WINDOW_DAYS = 14
+
+
+def within_notify_window(
+    job: JobRecord,
+    *,
+    days: int | None = None,
+    now: datetime | None = None,
+) -> bool:
+    """Return True if job.first_seen_at is within the notify window.
+
+    Older jobs are still stored; they just skip alerts. Missing/unparseable
+    timestamps are treated as fresh (notify) so we never drop a new listing.
+    """
+    window = days if days is not None else int(
+        (os.environ.get("JOBRADAR_NOTIFY_WINDOW_DAYS") or str(NOTIFY_WINDOW_DAYS)).strip()
+        or NOTIFY_WINDOW_DAYS
+    )
+    if window < 0:
+        return True
+    raw = (job.first_seen_at or "").strip()
+    if not raw:
+        return True
+    try:
+        fs = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if fs.tzinfo is None:
+        fs = fs.replace(tzinfo=timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    return (now - fs) <= timedelta(days=window)
 
 
 def _now() -> str:
@@ -232,6 +265,16 @@ def send_discord(text: str) -> str:
     return "ok"
 
 
+def _ntfy_header_value(value: str, max_len: int = 200) -> str:
+    """Encode ntfy header values as ASCII (RFC 2047) so em-dashes etc. do not break."""
+    value = (value or "")[:max_len]
+    try:
+        value.encode("ascii")
+        return value
+    except UnicodeEncodeError:
+        return Header(value, "utf-8").encode()
+
+
 def send_ntfy(text: str, *, priority: bool = False, title: str = "JobRadar") -> str:
     """Free phone push via ntfy.sh (or self-hosted NTFY_SERVER)."""
     topic = (os.environ.get("NTFY_TOPIC") or "").strip()
@@ -240,7 +283,7 @@ def send_ntfy(text: str, *, priority: bool = False, title: str = "JobRadar") -> 
     server = (os.environ.get("NTFY_SERVER") or "https://ntfy.sh").strip().rstrip("/")
     url = f"{server}/{quote(topic, safe='')}"
     headers = {
-        "Title": title[:200],
+        "Title": _ntfy_header_value(title, 200),
         "Priority": "5" if priority else "3",
         "Tags": "briefcase",
     }

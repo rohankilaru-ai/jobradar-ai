@@ -31,7 +31,11 @@ def test_health_cli_smoke(capsys, tmp_path, monkeypatch):
     assert "jobradar 0.1.0 ok" in out
     assert "notifiers: jsonl" in out
     assert "notion: skipped until keys set" in out
-    assert "gmail: skipped until secrets/gmail-client.json" in out
+    # gmail may be configured if secrets/gmail-client.json exists on the machine
+    assert (
+        "gmail: skipped until secrets/gmail-client.json" in out
+        or "gmail: configured" in out
+    )
 
 
 def test_scan_once_with_empty_sources(tmp_path, monkeypatch):
