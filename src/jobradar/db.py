@@ -426,3 +426,10 @@ class Database:
     def count_agent_runs(self) -> int:
         with self.connection() as conn:
             return int(conn.execute("SELECT COUNT(*) FROM agent_runs").fetchone()[0])
+    def upsert_job_closed(self, canonical_key: str) -> None:
+        """Mark a job as closed (for bad URLs, silent quarantine)."""
+        with self.connection() as conn:
+            conn.execute(
+                "UPDATE jobs SET is_closed = 1 WHERE canonical_key = ?",
+                (canonical_key,),
+            )
