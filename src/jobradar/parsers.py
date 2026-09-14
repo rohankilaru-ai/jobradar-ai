@@ -22,11 +22,14 @@ def _clean(text: str) -> str:
 
 
 
-_AGE_TOKEN = re.compile(r"^(\d+)\s*([dDhHmMwW])$")
+_AGE_TOKEN = re.compile(
+    r"^(\d+)\s*(mo|mos|months?|hours?|hrs?|days?|weeks?|wks?|[hdwm])$",
+    re.I,
+)
 
 
 def age_token_to_posted_at(token: str, *, now: datetime | None = None) -> str:
-    """Convert Simplify-style age tokens (12d, 3h) to an ISO date string; empty if unknown."""
+    """Convert Simplify-style age tokens (12d, 3h, 1mo) to an ISO date string; empty if unknown."""
     from datetime import datetime, timezone, timedelta
     raw = (token or "").strip()
     if not raw:
@@ -40,13 +43,13 @@ def age_token_to_posted_at(token: str, *, now: datetime | None = None) -> str:
     n = int(m.group(1))
     unit = m.group(2).lower()
     now = now or datetime.now(timezone.utc)
-    if unit == "h":
+    if unit in {"h", "hr", "hrs", "hour", "hours"}:
         dt = now - timedelta(hours=n)
-    elif unit == "d":
+    elif unit in {"d", "day", "days"}:
         dt = now - timedelta(days=n)
-    elif unit == "w":
+    elif unit in {"w", "wk", "wks", "week", "weeks"}:
         dt = now - timedelta(weeks=n)
-    elif unit == "m":
+    elif unit in {"m", "mo", "mos", "month", "months"}:
         dt = now - timedelta(days=30 * n)
     else:
         return ""

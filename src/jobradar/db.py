@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   season TEXT NOT NULL DEFAULT '',
   is_closed INTEGER NOT NULL DEFAULT 0,
   first_seen_at TEXT NOT NULL,
-  last_seen_at TEXT NOT NULL
+  last_seen_at TEXT NOT NULL,
+  posted_at TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS job_sources (
@@ -113,6 +114,10 @@ class Database:
         def cols(table: str) -> set[str]:
             return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
 
+        job_cols = cols("jobs")
+        if "posted_at" not in job_cols:
+            conn.execute("ALTER TABLE jobs ADD COLUMN posted_at TEXT NOT NULL DEFAULT ''")
+
         app = cols("applications")
         for name, typ in (
             ("company", "TEXT"),
@@ -157,8 +162,8 @@ class Database:
                     """
                     INSERT INTO jobs (
                       canonical_key, company, title, location, url, sources_json,
-                      snippet, priority, season, is_closed, first_seen_at, last_seen_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      snippet, priority, season, is_closed, first_seen_at, last_seen_at, posted_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         job.canonical_key,
@@ -173,6 +178,7 @@ class Database:
                         1 if job.is_closed else 0,
                         job.first_seen_at,
                         job.last_seen_at,
+                        getattr(job, "posted_at", "") or "",
                     ),
                 )
                 for src in job.sources:
@@ -199,7 +205,8 @@ class Database:
                   priority = MAX(priority, ?),
                   season = COALESCE(NULLIF(?, ''), season),
                   is_closed = MAX(is_closed, ?),
-                  last_seen_at = ?
+                  last_seen_at = ?,
+                  posted_at = COALESCE(NULLIF(?, ''), posted_at)
                 WHERE canonical_key = ?
                 """,
                 (
@@ -213,6 +220,7 @@ class Database:
                     job.season,
                     1 if job.is_closed else 0,
                     job.last_seen_at,
+                    getattr(job, "posted_at", "") or "",
                     job.canonical_key,
                 ),
             )
@@ -245,6 +253,7 @@ class Database:
                 is_closed=bool(row["is_closed"]),
                 first_seen_at=row["first_seen_at"],
                 last_seen_at=row["last_seen_at"],
+                posted_at=row["posted_at"] if "posted_at" in row.keys() else "",
                 canonical_key=row["canonical_key"],
             )
 
