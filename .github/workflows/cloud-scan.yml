@@ -12,8 +12,8 @@ name: cloud-scan
 
 on:
   schedule:
-    # Every 30 minutes, offset from :00/:30 (GitHub delays those peak slots heavily)
-    - cron: "7,37 * * * *"
+    # Every 10 minutes, offset from :00/:10/:20… (GitHub delays round slots; public repo = free)
+    - cron: "3,13,23,33,43,53 * * * *"
   push:
     branches: [main]
     paths:
@@ -28,7 +28,7 @@ on:
       test_discord:
         description: "Post one Discord test message before scanning"
         required: false
-        default: "true"
+        default: "false"
         type: boolean
 
 permissions:
@@ -136,7 +136,8 @@ jobs:
         run: python -m jobradar health
 
       - name: Discord test ping
-        if: github.event_name == 'workflow_dispatch' && (github.event.inputs.test_discord == 'true' || github.event.inputs.test_discord == true) || github.event_name == 'push'
+        # Manual only — never on schedule/push (those used to spam channels on every merge)
+        if: github.event_name == 'workflow_dispatch' && (github.event.inputs.test_discord == 'true' || github.event.inputs.test_discord == true)
         run: python -m jobradar test-discord
 
       - name: Scan once

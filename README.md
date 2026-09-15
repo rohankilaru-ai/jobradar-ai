@@ -43,7 +43,7 @@ python -m jobradar gmail-sync
 python -m jobradar ping-grok
 ```
 
-Prefer **cloud-scan** (GitHub Actions) over a local `--loop` so alerts keep working when your computer is asleep.
+Prefer **cloud-scan** (GitHub Actions, every ~10 min) for Discord. Keep Mac `JOBRADAR_ALERTS_ENABLED=0` so local and cloud do not double-ping. See [docs/CLOUD_SCAN.md](docs/CLOUD_SCAN.md).
 
 ## Layout
 
