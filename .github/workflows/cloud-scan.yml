@@ -8,6 +8,7 @@ name: cloud-scan
 # Optional Gmail secrets for inbox → labels + Notion status sync:
 #   GMAIL_CLIENT_SECRETS_JSON  (contents of secrets/gmail-client.json)
 #   GMAIL_TOKEN_JSON           (contents of secrets/gmail-token.json)
+# After secrets are added: Actions → cloud-scan → Run workflow (or push to main).
 
 on:
   schedule:
