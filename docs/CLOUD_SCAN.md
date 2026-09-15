@@ -42,6 +42,17 @@ Refresh tokens expire if unused for long periods — re-run `gmail-auth` locally
 
 5. You can close your laptop. Scans continue on GitHub's runners.
 
+## Stopping / controlling Discord spam
+
+| Control | How |
+|---|---|
+| **Pause all alerts now** | GitHub → Actions → **cloud-scan** → `...` menu → **Disable workflow** |
+| **Pause without disabling** | Settings → Actions → Variables → `JOBRADAR_ALERTS_ENABLED` = `0` |
+| **Fewer alerts per run** | Variable `JOBRADAR_MAX_ALERTS_PER_SCAN` (default `15`) |
+| **Stricter freshness** | Variable `JOBRADAR_NOTIFY_WINDOW_DAYS` (default `3`) |
+
+By default cloud-scan only Discord-alerts jobs with a known **source post date** within 3 days (`JOBRADAR_REQUIRE_POSTED_AT=1`). Older undated Simplify rows no longer flood just because cloud first saw them today.
+
 ## Local loop (optional)
 
 Still fine for development:
