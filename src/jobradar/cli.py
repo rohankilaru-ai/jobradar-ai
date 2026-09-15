@@ -96,8 +96,11 @@ def cmd_ping_grok(_: argparse.Namespace) -> int:
 
 def cmd_test_discord(_: argparse.Namespace) -> int:
     if not discord_configured():
-        print("skipped (no DISCORD_WEBHOOK_URL). See docs/ACCOUNTS.md")
-        return 0
+        print(
+            "skipped (no DISCORD_WEBHOOK_URL / _PRIORITY / _FORTUNE500 / _OTHER). "
+            "See docs/ACCOUNTS.md and docs/CLOUD_SCAN.md"
+        )
+        return 1
     send_discord("JobRadar test — Discord is wired.")
     print("ok")
     return 0
