@@ -62,6 +62,12 @@ When `GMAIL_CLIENT_SECRETS_JSON` + `GMAIL_TOKEN_JSON` GitHub secrets are set, ev
 
 Your Mac can stay closed.
 
+## Live backfill (done)
+
+A full pass labeled real application mail under `JobRadar/*` (ATS confirmations, Handshake "Application sent", rejections, OA/Interview). Marketing Handshake digests and Gradescope/course mail were left unlabeled on purpose.
+
+Refresh in Gmail: click **JobRadar** in the left sidebar (or search `label:JobRadar`). New mail is picked up by `gmail-sync` once cloud-scan secrets are set.
+
 ## Filters (optional, manual)
 
 Gmail MCP cannot create filters on this account (403). Create these in Gmail → Settings → Filters if you want instant labeling on arrival:
