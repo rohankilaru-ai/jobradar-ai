@@ -6,23 +6,25 @@ JobRadar can keep scanning internship sources **without your Mac awake** via Git
 
 Workflow: [`.github/workflows/cloud-scan.yml`](../.github/workflows/cloud-scan.yml)
 
-- Runs every **30 minutes** (UTC) on `ubuntu-latest`
+- Runs every **30 minutes** at `:07` and `:37` UTC (offset from `:00`/`:30` so GitHub is less likely to delay the cron)
 - Also runnable manually: Actions → **cloud-scan** → **Run workflow**
+- **Fails** if Discord webhook secrets are missing (so a “green” run always means alerts can fire)
 - Restores/saves `data/jobradar.db` via Actions cache so scans are incremental (not a fresh seed every time)
 - Sends Discord / ntfy / Telegram alerts when secrets are set
 - Optionally runs `gmail-sync` when Gmail OAuth JSON secrets are set
 
 This replaces needing `python -m jobradar scan --loop` on a local machine.
 
-## One-time setup
+## One-time setup (required for Discord)
 
-1. Open the repo on GitHub → **Settings → Secrets and variables → Actions → New repository secret**.
+**Without Discord secrets, cloud-scan fails on purpose** — otherwise it looks “green” while only your Mac can alert (which floods Discord when you open the laptop).
 
-2. Add at least one alert channel:
+1. On your Mac, open `.env` and copy the Discord webhook line(s).
+2. GitHub → repo → **Settings → Secrets and variables → Actions → New repository secret**.
 
 | Secret | Required? |
 |---|---|
-| `DISCORD_WEBHOOK_URL` or `DISCORD_WEBHOOK_PRIORITY` / `_FORTUNE500` / `_OTHER` | Recommended |
+| `DISCORD_WEBHOOK_URL` **or** `DISCORD_WEBHOOK_PRIORITY` / `_FORTUNE500` / `_OTHER` | **Required** (same values as Mac `.env`) |
 | `NTFY_TOPIC` | Optional |
 | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Optional |
 | `NOTION_TOKEN` + `NOTION_DATABASE_ID` | Recommended (board updates) |

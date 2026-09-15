@@ -2,17 +2,17 @@ name: cloud-scan
 
 # Runs JobRadar on GitHub-hosted runners so scanning continues with your laptop closed.
 # Required repo secrets (Settings → Secrets and variables → Actions):
-#   DISCORD_WEBHOOK_URL (or DISCORD_WEBHOOK_PRIORITY / _FORTUNE500 / _OTHER)
+#   DISCORD_WEBHOOK_URL and/or DISCORD_WEBHOOK_PRIORITY / _FORTUNE500 / _OTHER
 #   NTFY_TOPIC (optional)
 #   NOTION_TOKEN, NOTION_DATABASE_ID (optional but recommended)
-# Optional Gmail secrets for inbox → Notion status sync:
+# Optional Gmail secrets for inbox → labels + Notion status sync:
 #   GMAIL_CLIENT_SECRETS_JSON  (contents of secrets/gmail-client.json)
 #   GMAIL_TOKEN_JSON           (contents of secrets/gmail-token.json)
 
 on:
   schedule:
-    # Every 30 minutes UTC
-    - cron: "*/30 * * * *"
+    # Every 30 minutes, offset from :00/:30 (GitHub delays those peak slots heavily)
+    - cron: "7,37 * * * *"
   push:
     branches: [main]
     paths:
@@ -93,6 +93,22 @@ jobs:
             echo "GMAIL_TOKEN=secrets/gmail-token.json"
           } > .env
 
+      - name: Require Discord secrets
+        id: discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_PRIORITY: ${{ secrets.DISCORD_WEBHOOK_PRIORITY }}
+          DISCORD_WEBHOOK_FORTUNE500: ${{ secrets.DISCORD_WEBHOOK_FORTUNE500 }}
+          DISCORD_WEBHOOK_OTHER: ${{ secrets.DISCORD_WEBHOOK_OTHER }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL$DISCORD_WEBHOOK_PRIORITY$DISCORD_WEBHOOK_FORTUNE500$DISCORD_WEBHOOK_OTHER" ]; then
+            echo "::error::Cloud-scan cannot alert: add DISCORD_WEBHOOK_URL (or _PRIORITY / _FORTUNE500 / _OTHER) under Settings → Secrets → Actions. Copy the same values from your Mac .env. Without this, only local scan can Discord — which is why opening the laptop floods listings."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+          echo "Discord webhook secrets present."
+
       - name: Write Gmail secrets (optional)
         env:
           GMAIL_CLIENT_SECRETS_JSON: ${{ secrets.GMAIL_CLIENT_SECRETS_JSON }}
@@ -112,11 +128,15 @@ jobs:
 
       - name: Discord test ping
         if: github.event_name == 'workflow_dispatch' && (github.event.inputs.test_discord == 'true' || github.event.inputs.test_discord == true) || github.event_name == 'push'
-        run: |
-          python -m jobradar test-discord || echo "Discord test skipped (set DISCORD_WEBHOOK_* repo secrets)"
+        run: python -m jobradar test-discord
 
       - name: Scan once
-        run: python -m jobradar scan --once
+        run: |
+          python -m jobradar scan --once | tee /tmp/scan-out.txt
+          echo "## Cloud scan" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat /tmp/scan-out.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Gmail sync
         if: env.gmail_secrets == 'true'

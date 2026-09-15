@@ -471,7 +471,17 @@ def format_alert(job: JobRecord) -> str:
 
 
 def discord_configured() -> bool:
-    return bool((os.environ.get("DISCORD_WEBHOOK_URL") or "").strip())
+    """True if any Discord webhook env is set (legacy URL or tier-specific)."""
+    for key in (
+        "DISCORD_WEBHOOK_URL",
+        "DISCORD_WEBHOOK_PRIORITY",
+        "DISCORD_WEBHOOK_FORTUNE500",
+        "DISCORD_WEBHOOK_F500",
+        "DISCORD_WEBHOOK_OTHER",
+    ):
+        if (os.environ.get(key) or "").strip():
+            return True
+    return False
 
 
 def ntfy_configured() -> bool:

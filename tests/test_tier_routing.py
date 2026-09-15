@@ -7,7 +7,7 @@ import pytest
 
 from jobradar.db import Database
 from jobradar.models import JobRecord
-from jobradar.notify import Notifier, get_discord_webhook_url, send_discord
+from jobradar.notify import Notifier, discord_configured, get_discord_webhook_url, send_discord
 from jobradar.tier import classify_company_tier
 
 
@@ -438,3 +438,17 @@ def test_multiple_jobs_different_tiers_route_correctly(tmp_path, monkeypatch, re
         assert mock_post.call_count == 3
         actual_urls = [call[0][0] for call in mock_post.call_args_list]
         assert actual_urls == expected_urls
+
+
+def test_discord_configured_accepts_tier_webhooks(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in (
+        "DISCORD_WEBHOOK_URL",
+        "DISCORD_WEBHOOK_PRIORITY",
+        "DISCORD_WEBHOOK_FORTUNE500",
+        "DISCORD_WEBHOOK_F500",
+        "DISCORD_WEBHOOK_OTHER",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    assert discord_configured() is False
+    monkeypatch.setenv("DISCORD_WEBHOOK_OTHER", "https://discord.com/api/webhooks/1/x")
+    assert discord_configured() is True
