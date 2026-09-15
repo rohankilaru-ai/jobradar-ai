@@ -69,6 +69,30 @@ def test_phd_masters_postgrad_filtered():
     assert should_keep(JobRecord(company="Z", title="Software Engineer Intern", url="https://x/5")) is True
 
 
+def test_missing_posted_at_blocked_by_default(monkeypatch):
+    monkeypatch.setenv("JOBRADAR_REQUIRE_POSTED_AT", "1")
+    job = JobRecord(
+        company="Acme",
+        title="SWE Intern",
+        url="https://boards.greenhouse.io/acme/jobs/3",
+        posted_at="",
+        first_seen_at=datetime.now(timezone.utc).isoformat(),
+    )
+    assert within_notify_window(job) is False
+
+
+def test_missing_posted_at_allowed_when_require_off(monkeypatch):
+    monkeypatch.setenv("JOBRADAR_REQUIRE_POSTED_AT", "0")
+    job = JobRecord(
+        company="Acme",
+        title="SWE Intern",
+        url="https://boards.greenhouse.io/acme/jobs/4",
+        posted_at="",
+        first_seen_at=datetime.now(timezone.utc).isoformat(),
+    )
+    assert within_notify_window(job) is True
+
+
 def test_four_day_old_posted_outside_three_day_window():
     posted = (datetime.now(timezone.utc) - timedelta(days=4)).date().isoformat()
     job = JobRecord(

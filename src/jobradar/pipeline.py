@@ -24,6 +24,8 @@ class PipelineStats:
     skipped_bad_url: int = 0
     new: int = 0
     notified: int = 0
+    alerted: int = 0
+    alert_cap_hit: bool = False
     seeded: int = 0
     source_errors: list[str] = field(default_factory=list)
     seed_mode: bool = False
@@ -51,6 +53,9 @@ def run_scan(
     stats.seed_mode = was_empty and not alert_all
     results: list[ScoutResult] = scout_all(db, sources=sources)
     seen_in_pass: list[JobRecord] = []
+    from jobradar.notify import max_alerts_per_scan
+
+    alert_cap = max_alerts_per_scan()
 
     for result in results:
         if result.error:
@@ -87,9 +92,13 @@ def run_scan(
                 from jobradar.notify import should_send_alerts
 
                 should_alert = should_send_alerts(stored)
+                if should_alert and alert_cap and stats.alerted >= alert_cap:
+                    should_alert = False
+                    stats.alert_cap_hit = True
                 if notifier.notify(stored, silent=not should_alert):
                     stats.notified += 1
                 if should_alert:
+                    stats.alerted += 1
                     try:
                         director_enqueue(stored, db=db)
                     except Exception as exc:

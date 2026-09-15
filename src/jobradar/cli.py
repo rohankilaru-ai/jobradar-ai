@@ -68,8 +68,13 @@ def cmd_scan(args: argparse.Namespace) -> int:
             )
         print(
             f"scan done fetched={stats.fetched} kept={stats.kept} "
-            f"new={stats.new} notified={stats.notified}"
+            f"new={stats.new} notified={stats.notified} alerted={stats.alerted}"
         )
+        if stats.alert_cap_hit:
+            print(
+                "alert_cap_hit: more new jobs existed but JOBRADAR_MAX_ALERTS_PER_SCAN "
+                "stopped further Discord/ntfy this run"
+            )
         if stats.source_errors:
             for err in stats.source_errors:
                 print(f"source_error: {err}")

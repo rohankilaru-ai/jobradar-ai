@@ -55,6 +55,26 @@ BAD_URL_PATTERNS = [
 ]
 
 
+def alerts_enabled() -> bool:
+    """Kill switch for Discord/ntfy/Telegram. Set JOBRADAR_ALERTS_ENABLED=0 to pause."""
+    raw = (os.environ.get("JOBRADAR_ALERTS_ENABLED") or "1").strip().lower()
+    return raw not in {"0", "false", "off", "no", "disabled"}
+
+
+def require_posted_at() -> bool:
+    """If true, Discord only when source posted_at is known (avoids 'seen today' spam)."""
+    raw = (os.environ.get("JOBRADAR_REQUIRE_POSTED_AT") or "1").strip().lower()
+    return raw not in {"0", "false", "off", "no"}
+
+
+def max_alerts_per_scan() -> int:
+    """Cap live alerts per scan run. 0 = unlimited."""
+    try:
+        return max(0, int((os.environ.get("JOBRADAR_MAX_ALERTS_PER_SCAN") or "15").strip() or "15"))
+    except ValueError:
+        return 15
+
+
 def within_notify_window(
     job: JobRecord,
     *,
@@ -65,8 +85,10 @@ def within_notify_window(
 
     Prefer ``posted_at`` (aggregator/company list date) when present so weeks-old
     listings do not Discord-alert just because JobRadar first saw them today.
-    Fall back to ``first_seen_at``. Missing/unparseable timestamps are treated as
-    fresh (notify) so we never drop a brand-new listing with unknown age.
+
+    When ``JOBRADAR_REQUIRE_POSTED_AT`` is on (default), missing ``posted_at`` is
+    outside the window — do not fall back to ``first_seen_at`` (that caused floods
+    of older Simplify rows the first time cloud-scan discovered them).
     """
     window = days if days is not None else int(
         (os.environ.get("JOBRADAR_NOTIFY_WINDOW_DAYS") or str(NOTIFY_WINDOW_DAYS)).strip()
@@ -74,16 +96,22 @@ def within_notify_window(
     )
     if window < 0:
         return True
-    raw = (getattr(job, "posted_at", None) or "").strip() or (job.first_seen_at or "").strip()
-    if not raw:
-        return True
+    posted = (getattr(job, "posted_at", None) or "").strip()
+    if not posted:
+        if require_posted_at():
+            return False
+        raw = (job.first_seen_at or "").strip()
+        if not raw:
+            return True
+    else:
+        raw = posted
     try:
         if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
             fs = datetime.fromisoformat(raw).replace(tzinfo=timezone.utc)
         else:
             fs = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
-        return True
+        return not require_posted_at()
     if fs.tzinfo is None:
         fs = fs.replace(tzinfo=timezone.utc)
     now = now or datetime.now(timezone.utc)
@@ -441,6 +469,9 @@ def is_url_quality_good(url: str) -> bool:
 
 def should_send_alerts(job: JobRecord) -> bool:
     """Discord/ntfy/Telegram only when inside notify window AND main quality gates pass."""
+    if not alerts_enabled():
+        log.debug("Alerts paused (JOBRADAR_ALERTS_ENABLED=0): %s", job.canonical_key)
+        return False
     if not within_notify_window(job):
         log.debug("Job outside notify window: %s", job.canonical_key)
         return False

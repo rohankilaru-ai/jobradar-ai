@@ -11,6 +11,13 @@ def disable_link_probe_in_tests(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def allow_first_seen_fallback_in_tests(monkeypatch):
+    """Tests historically use first_seen_at without posted_at; keep that unless a test opts in."""
+    monkeypatch.setenv("JOBRADAR_REQUIRE_POSTED_AT", "0")
+    monkeypatch.setenv("JOBRADAR_MAX_ALERTS_PER_SCAN", "0")
+
+
+@pytest.fixture(autouse=True)
 def disable_live_notifications_in_tests(monkeypatch):
     """
     Clear all notification env vars to prevent live sends during tests.
