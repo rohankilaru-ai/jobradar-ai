@@ -20,6 +20,7 @@ python -m jobradar scan --once
 ## Docs
 
 - [docs/ACCOUNTS.md](docs/ACCOUNTS.md) — Discord, Twilio, Notion, Gmail setup
+- [docs/CLOUD_SCAN.md](docs/CLOUD_SCAN.md) — **24/7 scan with laptop closed** (GitHub Actions)
 - [PROJECT_SPEC.md](PROJECT_SPEC.md) — product + architecture
 - [UPLOAD_TO_GROK_BOT.md](UPLOAD_TO_GROK_BOT.md) — Director + sub-bot setup
 - [docs/GROK_BOT_SETUP.md](docs/GROK_BOT_SETUP.md) — human click path
@@ -41,6 +42,8 @@ python -m jobradar gmail-auth
 python -m jobradar gmail-sync
 python -m jobradar ping-grok
 ```
+
+Prefer **cloud-scan** (GitHub Actions) over a local `--loop` so alerts keep working when your computer is asleep.
 
 ## Layout
 

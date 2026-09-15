@@ -1,0 +1,108 @@
+name: cloud-scan
+
+# Runs JobRadar on GitHub-hosted runners so scanning continues with your laptop closed.
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   DISCORD_WEBHOOK_URL (or DISCORD_WEBHOOK_PRIORITY / _FORTUNE500 / _OTHER)
+#   NTFY_TOPIC (optional)
+#   NOTION_TOKEN, NOTION_DATABASE_ID (optional but recommended)
+# Optional Gmail secrets for inbox → Notion status sync:
+#   GMAIL_CLIENT_SECRETS_JSON  (contents of secrets/gmail-client.json)
+#   GMAIL_TOKEN_JSON           (contents of secrets/gmail-token.json)
+
+on:
+  schedule:
+    # Every 30 minutes UTC
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      gmail_days:
+        description: "Gmail lookback days when Gmail secrets are set"
+        required: false
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobradar-cloud-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Restore SQLite cache
+        uses: actions/cache@v4
+        with:
+          path: data/jobradar.db
+          key: jobradar-db-${{ github.repository }}-${{ github.run_id }}
+          restore-keys: |
+            jobradar-db-${{ github.repository }}-
+
+      - name: Write env
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_PRIORITY: ${{ secrets.DISCORD_WEBHOOK_PRIORITY }}
+          DISCORD_WEBHOOK_FORTUNE500: ${{ secrets.DISCORD_WEBHOOK_FORTUNE500 }}
+          DISCORD_WEBHOOK_OTHER: ${{ secrets.DISCORD_WEBHOOK_OTHER }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_SERVER: ${{ secrets.NTFY_SERVER }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: |
+          mkdir -p data secrets
+          touch data/jobradar.db
+          {
+            echo "DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}"
+            echo "DISCORD_WEBHOOK_PRIORITY=${DISCORD_WEBHOOK_PRIORITY}"
+            echo "DISCORD_WEBHOOK_FORTUNE500=${DISCORD_WEBHOOK_FORTUNE500}"
+            echo "DISCORD_WEBHOOK_OTHER=${DISCORD_WEBHOOK_OTHER}"
+            echo "NTFY_TOPIC=${NTFY_TOPIC}"
+            echo "NTFY_SERVER=${NTFY_SERVER:-https://ntfy.sh}"
+            echo "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}"
+            echo "TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}"
+            echo "NOTION_TOKEN=${NOTION_TOKEN}"
+            echo "NOTION_DATABASE_ID=${NOTION_DATABASE_ID}"
+            echo "JOBRADAR_DB_PATH=data/jobradar.db"
+            echo "JOBRADAR_NOTIFY_MOCK_PATH=data/notifications.jsonl"
+            echo "JOBRADAR_LINK_PROBE=${JOBRADAR_LINK_PROBE:-1}"
+            echo "GMAIL_CLIENT_SECRETS=secrets/gmail-client.json"
+            echo "GMAIL_TOKEN=secrets/gmail-token.json"
+          } > .env
+
+      - name: Write Gmail secrets (optional)
+        env:
+          GMAIL_CLIENT_SECRETS_JSON: ${{ secrets.GMAIL_CLIENT_SECRETS_JSON }}
+          GMAIL_TOKEN_JSON: ${{ secrets.GMAIL_TOKEN_JSON }}
+        run: |
+          if [ -n "$GMAIL_CLIENT_SECRETS_JSON" ] && [ -n "$GMAIL_TOKEN_JSON" ]; then
+            printf '%s' "$GMAIL_CLIENT_SECRETS_JSON" > secrets/gmail-client.json
+            printf '%s' "$GMAIL_TOKEN_JSON" > secrets/gmail-token.json
+            echo "gmail_secrets=true" >> "$GITHUB_ENV"
+          else
+            echo "gmail_secrets=false" >> "$GITHUB_ENV"
+            echo "Gmail secrets not set — skipping gmail-sync (scan still runs)."
+          fi
+
+      - name: Health
+        run: python -m jobradar health
+
+      - name: Scan once
+        run: python -m jobradar scan --once
+
+      - name: Gmail sync
+        if: env.gmail_secrets == 'true'
+        run: python -m jobradar gmail-sync --days "${{ github.event.inputs.gmail_days || '3' }}" --max 150

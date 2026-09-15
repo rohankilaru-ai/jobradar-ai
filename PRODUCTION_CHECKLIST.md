@@ -65,19 +65,17 @@ python -m jobradar ping-grok
 
 ---
 
-### 3. 24/7 VM Deployment
+### 3. 24/7 scanning (laptop closed)
 
-**Status:** Code ready for `scan --loop`, not yet deployed.
+**Status:** Implemented via GitHub Actions — see [docs/CLOUD_SCAN.md](docs/CLOUD_SCAN.md).
 
-**What's needed:**
-- Provision a small VM (e.g., DigitalOcean $6/month, AWS t3.micro, GCP e2-micro)
-- Install Python 3.12, git, dependencies
-- Clone repo, set `.env` with notification keys
-- Run: `python -m jobradar scan --loop --interval 300` (5 min scans)
-- Optional: systemd service or supervisord for auto-restart
-- Optional: GitHub Actions already runs pytest on push (no VM setup needed)
+**What's needed (Rohan):**
+- Add Discord / Notion / optional Gmail JSON as GitHub Actions secrets
+- Enable Actions; run **cloud-scan** once manually to verify
 
-**Alternative:** Rohan can run `scan --loop` on his Mac (already has Grok Bots running there).
+**Optional local:**
+- `python -m jobradar scan --loop --interval 300` on Mac/VM
+- Prefer cloud-scan so sleep/travel does not stop alerts
 
 **Files:**
 - `Dockerfile` + `docker-compose.yml` (container option)
