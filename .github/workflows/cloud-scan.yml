@@ -13,12 +13,22 @@ on:
   schedule:
     # Every 30 minutes UTC
     - cron: "*/30 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cloud-scan.yml"
+      - "src/jobradar/**"
   workflow_dispatch:
     inputs:
       gmail_days:
         description: "Gmail lookback days when Gmail secrets are set"
         required: false
         default: "3"
+      test_discord:
+        description: "Post one Discord test message before scanning"
+        required: false
+        default: "true"
+        type: boolean
 
 permissions:
   contents: read
@@ -99,6 +109,11 @@ jobs:
 
       - name: Health
         run: python -m jobradar health
+
+      - name: Discord test ping
+        if: github.event_name == 'workflow_dispatch' && (github.event.inputs.test_discord == 'true' || github.event.inputs.test_discord == true) || github.event_name == 'push'
+        run: |
+          python -m jobradar test-discord || echo "Discord test skipped (set DISCORD_WEBHOOK_* repo secrets)"
 
       - name: Scan once
         run: python -m jobradar scan --once
