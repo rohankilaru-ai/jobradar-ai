@@ -1,19 +1,42 @@
 # Cloud scan (laptop closed)
 
-JobRadar can keep scanning internship sources **without your Mac awake** via GitHub Actions.
+JobRadar scans internship sources **24/7 on GitHub Actions**. The Mac LaunchAgent is optional and should **not** Discord when cloud is healthy (separate DBs → duplicate alerts).
 
 ## How it works
 
 Workflow: [`.github/workflows/cloud-scan.yml`](../.github/workflows/cloud-scan.yml)
 
-- Runs every **30 minutes** at `:07` and `:37` UTC (offset from `:00`/`:30` so GitHub is less likely to delay the cron)
+- Runs every **10 minutes** at `:03,:13,:23,:33,:43,:53` UTC (offset from round minutes so GitHub is less likely to delay the cron)
 - Also runnable manually: Actions → **cloud-scan** → **Run workflow**
 - **Fails** if Discord webhook secrets are missing (so a “green” run always means alerts can fire)
 - Restores/saves `data/jobradar.db` via Actions cache so scans are incremental (not a fresh seed every time)
 - Sends Discord / ntfy / Telegram alerts when secrets are set
 - Optionally runs `gmail-sync` when Gmail OAuth JSON secrets are set
 
-This replaces needing `python -m jobradar scan --loop` on a local machine.
+Public repos get standard Actions minutes **free**. 10‑minute cron is allowed (GitHub minimum is 5). Cron can still slip a few minutes under load.
+
+## Verify it’s working
+
+1. Actions → **cloud-scan** → **Run workflow** → set `test_discord` = **true** → Run.
+2. Confirm the run is green and Discord gets a short test message in each configured tier channel.
+3. Check the run log for `scan done … alerted=N`. `alerted=0` with `new=0` means **no new dated jobs** — not a broken Discord path.
+4. Confirm scheduled runs appear with `event: schedule` (not only `push`). After changing the cron, wait ~15–20 minutes for the next tick.
+
+```bash
+gh run list --workflow=cloud-scan.yml --limit 10
+gh workflow run cloud-scan.yml -f test_discord=true
+```
+
+### Why overnight looked “dead,” then flooded
+
+| What you saw | Cause |
+|---|---|
+| Overnight: no Discord | Mac asleep (local DNS fail). Cloud was scanning but **Discord secrets were empty** until ~16:42 UTC Sep 15 — so cloud could not post. |
+| Open laptop → flood | Local LaunchAgent woke, saw jobs “new” to the **Mac** DB, Discord-on → dump. |
+| After fixing secrets → another dump | First cloud runs with working webhooks + thin/empty cache treated listings as newly alertable. Spam gates (`REQUIRE_POSTED_AT`, 3‑day window, cap 15) now limit that. |
+| Quiet for a while after | Normal: `alerted=0` when nothing new has a source `posted_at` within 3 days. |
+
+**Rule:** cloud owns Discord. On the Mac set `JOBRADAR_ALERTS_ENABLED=0` (or unload the LaunchAgent) so both never alert the same job.
 
 ## One-time setup (required for Discord)
 
@@ -38,9 +61,18 @@ This replaces needing `python -m jobradar scan --loop` on a local machine.
 
 Refresh tokens expire if unused for long periods — re-run `gmail-auth` locally and update the secret if sync starts failing.
 
-4. Trigger once: **Actions → cloud-scan → Run workflow**. Confirm Discord/Notion update.
+4. Trigger once with `test_discord=true`. Confirm Discord.
 
-5. You can close your laptop. Scans continue on GitHub's runners.
+5. Unload local scan (recommended):
+
+```bash
+launchctl bootout "gui/$(id -u)/com.rohankilaru.jobradar-scan"
+# optional: keep plist from auto-starting at login
+mv ~/Library/LaunchAgents/com.rohankilaru.jobradar-scan.plist \
+   ~/Library/LaunchAgents/com.rohankilaru.jobradar-scan.plist.disabled
+```
+
+And in Mac `.env`: `JOBRADAR_ALERTS_ENABLED=0`.
 
 ## Stopping / controlling Discord spam
 
@@ -53,15 +85,15 @@ Refresh tokens expire if unused for long periods — re-run `gmail-auth` locally
 
 By default cloud-scan only Discord-alerts jobs with a known **source post date** within 3 days (`JOBRADAR_REQUIRE_POSTED_AT=1`). Older undated Simplify rows no longer flood just because cloud first saw them today.
 
-## Local loop (optional)
-
-Still fine for development:
+## Local loop (debug only)
 
 ```bash
+# Only if you temporarily want Mac Discord again:
+# JOBRADAR_ALERTS_ENABLED=1
 python -m jobradar scan --loop --interval 300
 ```
 
-Prefer cloud-scan for production so sleep/travel does not stop alerts.
+Or `./scripts/run-scan-loop.sh`. Prefer cloud-scan for production.
 
 ## Cursor Cloud Agents
 
