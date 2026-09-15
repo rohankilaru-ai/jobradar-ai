@@ -6,14 +6,14 @@ JobRadar scans internship sources **24/7 on GitHub Actions**. The Mac LaunchAgen
 
 Workflow: [`.github/workflows/cloud-scan.yml`](../.github/workflows/cloud-scan.yml)
 
-- Runs every **10 minutes** at `:03,:13,:23,:33,:43,:53` UTC (offset from round minutes so GitHub is less likely to delay the cron)
+- Runs every **5 minutes** (GitHub’s minimum) at `:02,:07,:12,…` UTC (offset from round minutes so GitHub is less likely to delay the cron)
 - Also runnable manually: Actions → **cloud-scan** → **Run workflow**
 - **Fails** if Discord webhook secrets are missing (so a “green” run always means alerts can fire)
 - Restores/saves `data/jobradar.db` via Actions cache so scans are incremental (not a fresh seed every time)
 - Sends Discord / ntfy / Telegram alerts when secrets are set
 - Optionally runs `gmail-sync` when Gmail OAuth JSON secrets are set
 
-Public repos get standard Actions minutes **free**. 10‑minute cron is allowed (GitHub minimum is 5). Cron can still slip a few minutes under load.
+Public repos get standard Actions minutes **free**. 5‑minute cron is allowed (GitHub’s minimum). ~288 runs/day × ~1 min ≈ a few hundred minutes/month — free on public; fine even on private Free (2,000 min). Cron can still slip a few minutes under load.
 
 ## Verify it’s working
 

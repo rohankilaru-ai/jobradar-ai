@@ -12,8 +12,9 @@ name: cloud-scan
 
 on:
   schedule:
-    # Every 10 minutes, offset from :00/:10/:20… (GitHub delays round slots; public repo = free)
-    - cron: "3,13,23,33,43,53 * * * *"
+    # Every 5 minutes (GitHub minimum). Offset from :00/:05/…; public repo = free Actions minutes.
+    # Cron can still slip a few minutes under load.
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
   push:
     branches: [main]
     paths:
