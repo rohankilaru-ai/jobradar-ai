@@ -58,3 +58,24 @@ def test_age_token_1mo_outside_two_week_window():
         posted_at=posted,
     )
     assert within_notify_window(job, now=now) is False
+
+
+def test_phd_masters_postgrad_filtered():
+    assert should_keep(JobRecord(company="Google", title="Software Engineering Intern, PhD, Summer 2027", url="https://x/1")) is False
+    assert should_keep(JobRecord(company="Marvell", title="IC Validation Engineer Intern - MS", url="https://x/2")) is False
+    assert should_keep(JobRecord(company="X", title="Postgraduate Research Intern", url="https://x/3")) is False
+    # undergrad dual-track still kept
+    assert should_keep(JobRecord(company="Y", title="Software Engineer Intern BS/MS", url="https://x/4")) is True
+    assert should_keep(JobRecord(company="Z", title="Software Engineer Intern", url="https://x/5")) is True
+
+
+def test_four_day_old_posted_outside_three_day_window():
+    posted = (datetime.now(timezone.utc) - timedelta(days=4)).date().isoformat()
+    job = JobRecord(
+        company="Acme",
+        title="SWE Intern",
+        url="https://boards.greenhouse.io/acme/jobs/9",
+        posted_at=posted,
+        first_seen_at=datetime.now(timezone.utc).isoformat(),
+    )
+    assert within_notify_window(job) is False

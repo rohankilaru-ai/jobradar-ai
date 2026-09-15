@@ -43,7 +43,7 @@ RECRUITING_HOSTS = {
     "wd1.myworkdaysite.com", "wd5.myworkdaysite.com",
 }
 
-NOTIFY_WINDOW_DAYS = 14
+NOTIFY_WINDOW_DAYS = 3
 
 BAD_URL_PATTERNS = [
     r"example\.com",

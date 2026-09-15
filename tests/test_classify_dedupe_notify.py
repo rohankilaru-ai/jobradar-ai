@@ -255,28 +255,28 @@ def test_pipeline_seeds_first_scan_then_alerts(tmp_path):
     assert n.notify(stored) is False
 
 
-def test_within_notify_window_14_days():
+def test_within_notify_window_3_days():
     now = datetime(2026, 9, 14, tzinfo=timezone.utc)
     fresh = JobRecord(
         company="A",
         title="SWE Intern",
         url="https://ex/fresh",
-        first_seen_at=(now - timedelta(days=3)).isoformat(),
+        first_seen_at=(now - timedelta(days=2)).isoformat(),
     )
     stale = JobRecord(
         company="B",
         title="SWE Intern",
         url="https://ex/stale",
-        first_seen_at=(now - timedelta(days=20)).isoformat(),
+        first_seen_at=(now - timedelta(days=5)).isoformat(),
     )
     assert within_notify_window(fresh, now=now) is True
     assert within_notify_window(stale, now=now) is False
-    # boundary: exactly 14 days still notifies
+    # boundary: exactly 3 days still notifies
     edge = JobRecord(
         company="C",
         title="SWE Intern",
         url="https://ex/edge",
-        first_seen_at=(now - timedelta(days=14)).isoformat(),
+        first_seen_at=(now - timedelta(days=3)).isoformat(),
     )
     assert within_notify_window(edge, now=now) is True
 

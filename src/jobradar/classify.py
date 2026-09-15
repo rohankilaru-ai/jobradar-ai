@@ -66,7 +66,19 @@ NEWGRAD_SIGNALS = (
     "early-career", "university grad", "grad program", "new graduate engineer",
 )
 
-# Intern signals that override new-grad exclusion
+# PhD / Masters / post-grad — hard exclude even when title also says Intern
+# (Rohan is undergrad; these pings are noise.)
+GRAD_LEVEL_SIGNALS = (
+    "phd", "ph.d", "ph.d.", "doctoral", "doctorate",
+    "master's", "masters ", " masters", "mba ",
+    "post-grad", "postgrad", "post graduate", "postgraduate",
+    "graduate student", "grad student",
+    " - ms", " – ms", " — ms", "(ms)", " ms,", " ms ",
+    "ms only", "ms/phd", "phd/ms",
+    "🎓",
+)
+
+# Intern signals that override new-grad exclusion (NOT grad-level exclusion)
 INTERN_SIGNALS = (
     "intern", "internship", "co-op", "coop", "summer", "spring", "fall", "winter",
 )
@@ -85,11 +97,21 @@ def _blob(job: JobRecord) -> str:
 
 def should_keep(job: JobRecord) -> bool:
     text = _blob(job)
-    
+
+    # Hard-drop PhD / Masters / post-grad (including "Intern - MS/PhD")
+    if any(x in text for x in GRAD_LEVEL_SIGNALS):
+        # Allow explicit undergrad dual-track like "BS/MS" only when PhD is absent
+        if "phd" in text or "ph.d" in text or "doctoral" in text or "doctorate" in text:
+            return False
+        if "bs/ms" in text or "bs / ms" in text or "b.s./m.s" in text:
+            pass  # undergrad-eligible dual listing
+        else:
+            return False
+
     # Check for new-grad / full-time signals
     has_newgrad = any(x in text for x in NEWGRAD_SIGNALS)
     has_intern = any(x in text for x in INTERN_SIGNALS)
-    
+
     # Exclude new-grad roles unless they're also clearly internships
     if has_newgrad and not has_intern:
         return False

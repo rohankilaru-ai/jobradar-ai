@@ -94,7 +94,7 @@ def test_probe_url_exception(mock_head, monkeypatch):
 def test_notify_window_recent_job():
     """Job first seen within 14 days should be within window."""
     now = datetime.now(timezone.utc)
-    recent = now - timedelta(days=7)
+    recent = now - timedelta(days=2)
     job = JobRecord(
         company="Stripe",
         title="SWE Intern",
@@ -120,9 +120,9 @@ def test_notify_window_old_job():
 
 
 def test_notify_window_edge():
-    """Job exactly at 14-day boundary should be within window."""
+    """Job near the 3-day notify-window boundary should be within window."""
     now = datetime.now(timezone.utc)
-    edge = now - timedelta(days=14, hours=-1)  # 13 days, 23 hours
+    edge = now - timedelta(days=3, hours=-1)  # just under 3 days
     job = JobRecord(
         company="Stripe",
         title="SWE Intern",
