@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.rohankilaru.jobradar-scan</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/rohankilaru/Resume Bot/job-agent-notifier/scripts/run-scan-loop.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/rohankilaru/Resume Bot/job-agent-notifier</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/rohankilaru/Resume Bot/job-agent-notifier/data/logs/scan-loop-launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/rohankilaru/Resume Bot/job-agent-notifier/data/logs/scan-loop-launchd.err.log</string>
+</dict>
+</plist>

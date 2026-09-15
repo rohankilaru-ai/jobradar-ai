@@ -43,7 +43,7 @@ python -m jobradar gmail-sync
 python -m jobradar ping-grok
 ```
 
-Prefer **cloud-scan** (GitHub Actions, every ~5 min) for Discord. Keep Mac `JOBRADAR_ALERTS_ENABLED=0` so local and cloud do not double-ping. See [docs/CLOUD_SCAN.md](docs/CLOUD_SCAN.md).
+Discord owner is either **local** or **cloud** — flip with `./scripts/scan-mode.sh local|cloud|status`. See [docs/CLOUD_SCAN.md](docs/CLOUD_SCAN.md).
 
 ## Layout
 

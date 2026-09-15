@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Optional local scan loop (debug). Prefer GitHub Actions cloud-scan for Discord.
-# Keep JOBRADAR_ALERTS_ENABLED=0 in .env when cloud-scan owns Discord.
+# Local scan loop (LaunchAgent). Prefer ./scripts/scan-mode.sh local|cloud to flip Discord owner.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
