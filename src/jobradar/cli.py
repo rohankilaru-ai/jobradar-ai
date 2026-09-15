@@ -100,7 +100,7 @@ def cmd_test_discord(_: argparse.Namespace) -> int:
             "skipped (no DISCORD_WEBHOOK_URL / _PRIORITY / _FORTUNE500 / _OTHER). "
             "See docs/ACCOUNTS.md and docs/CLOUD_SCAN.md"
         )
-        return 1
+        return 0
     send_discord("JobRadar test — Discord is wired.")
     print("ok")
     return 0
