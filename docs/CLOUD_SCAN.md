@@ -1,6 +1,22 @@
 # Cloud scan (laptop closed)
 
-JobRadar scans internship sources **24/7 on GitHub Actions**. The Mac LaunchAgent is optional and should **not** Discord when cloud is healthy (separate DBs → duplicate alerts).
+JobRadar can Discord from **either** GitHub Actions (cloud) **or** the Mac LaunchAgent (local) — not both. Separate DBs → duplicate alerts if both are on.
+
+## Flip switch (local ↔ cloud)
+
+```bash
+cd "/Users/rohankilaru/Resume Bot/job-agent-notifier"
+./scripts/scan-mode.sh status   # what’s on
+./scripts/scan-mode.sh local    # Mac on, cloud-scan workflow off
+./scripts/scan-mode.sh cloud    # cloud on, Mac LaunchAgent off
+```
+
+| Mode | Discord from | Needs |
+|---|---|---|
+| `local` | Mac every ~5 min | Laptop awake |
+| `cloud` | GitHub Actions (~5 min cron, may lag) | Secrets on the repo |
+
+The script toggles: LaunchAgent, `.env` `JOBRADAR_ALERTS_ENABLED`, and `gh workflow disable/enable cloud-scan.yml`.
 
 ## How it works
 
@@ -36,7 +52,7 @@ gh workflow run cloud-scan.yml -f test_discord=true
 | After fixing secrets → another dump | First cloud runs with working webhooks + thin/empty cache treated listings as newly alertable. Spam gates (`REQUIRE_POSTED_AT`, 3‑day window, cap 15) now limit that. |
 | Quiet for a while after | Normal: `alerted=0` when nothing new has a source `posted_at` within 3 days. |
 
-**Rule:** cloud owns Discord. On the Mac set `JOBRADAR_ALERTS_ENABLED=0` (or unload the LaunchAgent) so both never alert the same job.
+**Rule:** one Discord owner at a time. Use `./scripts/scan-mode.sh local|cloud` — do not enable both.
 
 ## One-time setup (required for Discord)
 
@@ -63,16 +79,7 @@ Refresh tokens expire if unused for long periods — re-run `gmail-auth` locally
 
 4. Trigger once with `test_discord=true`. Confirm Discord.
 
-5. Unload local scan (recommended):
-
-```bash
-launchctl bootout "gui/$(id -u)/com.rohankilaru.jobradar-scan"
-# optional: keep plist from auto-starting at login
-mv ~/Library/LaunchAgents/com.rohankilaru.jobradar-scan.plist \
-   ~/Library/LaunchAgents/com.rohankilaru.jobradar-scan.plist.disabled
-```
-
-And in Mac `.env`: `JOBRADAR_ALERTS_ENABLED=0`.
+5. Prefer cloud overnight: `./scripts/scan-mode.sh cloud`. Prefer snappy Discord while coding: `./scripts/scan-mode.sh local`.
 
 ## Stopping / controlling Discord spam
 
@@ -85,15 +92,9 @@ And in Mac `.env`: `JOBRADAR_ALERTS_ENABLED=0`.
 
 By default cloud-scan only Discord-alerts jobs with a known **source post date** within 3 days (`JOBRADAR_REQUIRE_POSTED_AT=1`). Older undated Simplify rows no longer flood just because cloud first saw them today.
 
-## Local loop (debug only)
+## Local loop
 
-```bash
-# Only if you temporarily want Mac Discord again:
-# JOBRADAR_ALERTS_ENABLED=1
-python -m jobradar scan --loop --interval 300
-```
-
-Or `./scripts/run-scan-loop.sh`. Prefer cloud-scan for production.
+Use the flip switch (`./scripts/scan-mode.sh local`). Under the hood that starts LaunchAgent → `scripts/run-scan-loop.sh` → `scan --loop` every 5 minutes.
 
 ## Cursor Cloud Agents
 
