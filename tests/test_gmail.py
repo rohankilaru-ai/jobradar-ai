@@ -1,9 +1,11 @@
 from jobradar.gmail import (
+    STATUS_RANK,
     classify_email,
     classify_role_family,
     extract_company_guess,
     extract_role_guess,
     nested_label_name,
+    status_from_classification,
 )
 
 
@@ -69,3 +71,12 @@ def test_role_family_ds():
 
 def test_nested_label_name():
     assert nested_label_name("Applied") == "JobRadar/Applied"
+
+
+def test_status_from_classification():
+    assert status_from_classification("applied") == "Applied"
+    assert status_from_classification("other") is None
+
+
+def test_status_rank_progression():
+    assert STATUS_RANK["Interview"] > STATUS_RANK["OA"] > STATUS_RANK["Applied"]

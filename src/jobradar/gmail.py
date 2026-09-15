@@ -388,6 +388,198 @@ def legacy_label_ids(service) -> list[str]:
     return [existing[name] for name in LEGACY_FLAT_LABELS if name in existing]
 
 
+# Higher rank wins when a thread has mixed signals across messages.
+STATUS_RANK: dict[str, int] = {
+    "Backlog": 0,
+    "Waiting": 1,
+    "Recruiter": 2,
+    "Applied": 3,
+    "OA": 4,
+    "Interview": 5,
+    "Final Round": 6,
+    "Offer": 7,
+    "Ghosted": 8,
+    "Rejected": 9,
+}
+
+
+def status_from_classification(classification: str) -> str | None:
+    status = STATUS_FOR.get(classification, "")
+    if status in STATUS_LABELS:
+        return status
+    return None
+
+
+def _other_nested_status_ids(label_ids: dict[str, str], keep: str | None) -> list[str]:
+    return [label_ids[s] for s in STATUS_LABELS if s in label_ids and s != keep]
+
+
+def apply_thread_status(
+    service,
+    thread_id: str,
+    status: str | None,
+    label_ids: dict[str, str],
+    legacy_ids: list[str],
+) -> None:
+    """Ensure JobRadar parent + one nested status; strip legacy flat labels."""
+    add_ids = [label_ids["_parent"]]
+    if status and status in label_ids:
+        add_ids.append(label_ids[status])
+    remove_ids = list(legacy_ids) + _other_nested_status_ids(label_ids, status)
+    remove_ids = [x for x in remove_ids if x not in add_ids]
+    if not add_ids and not remove_ids:
+        return
+    body: dict = {}
+    if add_ids:
+        body["addLabelIds"] = add_ids
+    if remove_ids:
+        body["removeLabelIds"] = remove_ids
+    service.users().threads().modify(userId="me", id=thread_id, body=body).execute()
+
+
+def _job_search_query(*, days: int) -> str:
+    return (
+        f"newer_than:{days}d "
+        "(subject:(appl OR interview OR assessment OR offer OR unfortunately OR recruiter OR hackerrank OR codesignal OR phone screen) "
+        "OR from:(greenhouse OR lever OR ashby OR workday OR icims OR handshake OR myworkday OR recruiting OR careers OR no-reply OR noreply) "
+        "OR label:JobRadar OR label:Applied OR label:\"Job Oriented\" OR label:\"JobRadar/Applied\")"
+    )
+
+
+def reorganize(
+    db: Database | None = None,
+    *,
+    days: int = 365,
+    max_threads: int = 500,
+    dry_run: bool = False,
+) -> dict:
+    """Backfill: classify job threads, apply exclusive nested JobRadar/* labels, optional Notion sync."""
+    from jobradar import notion as notion_mod
+
+    if not configured():
+        return {"skipped": True, "reason": "no gmail-client.json"}
+    service = _service()
+    label_ids = ensure_labels(service)
+    legacy_ids = legacy_label_ids(service)
+    q = _job_search_query(days=days)
+    resp = service.users().threads().list(userId="me", q=q, maxResults=max_threads).execute()
+    threads = resp.get("threads") or []
+    stats = {
+        "threads": len(threads),
+        "labeled": 0,
+        "skipped_other": 0,
+        "notion": 0,
+        "dry_run": dry_run,
+    }
+    if db is None:
+        db = Database()
+
+    for meta in threads:
+        tid = meta["id"]
+        thread = service.users().threads().get(
+            userId="me",
+            id=tid,
+            format="metadata",
+            metadataHeaders=["Subject", "From"],
+        ).execute()
+        messages = thread.get("messages") or []
+        if not messages:
+            continue
+
+        best_class = "other"
+        best_rank = -1
+        latest_subject = ""
+        latest_from = ""
+        latest_snippet = ""
+        for msg in messages:
+            headers = msg.get("payload", {}).get("headers") or []
+            subject = _header(headers, "Subject")
+            from_addr = _header(headers, "From")
+            snippet = msg.get("snippet") or ""
+            classification = classify_email(subject, snippet, from_addr)
+            latest_subject, latest_from, latest_snippet = subject, from_addr, snippet
+            status = status_from_classification(classification)
+            if status:
+                rank = STATUS_RANK.get(status, 0)
+                if rank > best_rank:
+                    best_rank = rank
+                    best_class = classification
+
+        status = status_from_classification(best_class)
+        if not status:
+            stats["skipped_other"] += 1
+            if not dry_run:
+                apply_thread_status(service, tid, None, label_ids, legacy_ids)
+            continue
+
+        if dry_run:
+            stats["labeled"] += 1
+            continue
+
+        apply_thread_status(service, tid, status, label_ids, legacy_ids)
+        stats["labeled"] += 1
+
+        company = extract_company_guess(latest_subject, latest_from, latest_snippet)
+        role = extract_role_guess(latest_subject, latest_snippet)
+        gmail_url = f"https://mail.google.com/mail/u/0/#inbox/{tid}"
+        job = db.find_job_by_company(company)
+        if job:
+            canonical = job.canonical_key
+            title = job.title
+            company = job.company
+            location = job.location
+            url = job.url
+            priority = job.priority
+            sources = list(job.sources)
+            posted_at = job.posted_at or ""
+            first_seen = job.first_seen_at
+            last_seen = job.last_seen_at
+        else:
+            canonical = _email_canonical_key(company, role, tid)
+            title = role
+            location = url = posted_at = ""
+            priority = classify_company_tier(company) == "priority"
+            sources = ["gmail"]
+            now = datetime.now(timezone.utc).isoformat()
+            first_seen = last_seen = now
+
+        date_applied = datetime.now(timezone.utc).isoformat() if status == "Applied" else ""
+        db.upsert_application(
+            canonical_key=canonical,
+            company=company,
+            title=title,
+            status=status,
+            date_applied=date_applied or None,
+            gmail_thread_id=gmail_url,
+        )
+        record = JobRecord(
+            canonical_key=canonical,
+            company=company,
+            title=title,
+            location=location,
+            url=url,
+            sources=sources,
+            priority=priority,
+            first_seen_at=first_seen or datetime.now(timezone.utc).isoformat(),
+            last_seen_at=last_seen or datetime.now(timezone.utc).isoformat(),
+            posted_at=posted_at,
+        )
+        try:
+            if notion_mod.upsert_job(
+                record,
+                db=db,
+                status=status,
+                gmail_thread=gmail_url,
+                role_family=classify_role_family(title),
+                tier=tier_display(company),
+                date_applied=date_applied,
+            ):
+                stats["notion"] += 1
+        except Exception as exc:
+            log.warning("notion from reorganize failed: %s", exc)
+    return stats
+
+
 def _header(headers: list[dict], name: str) -> str:
     for h in headers:
         if h.get("name", "").lower() == name.lower():
@@ -444,20 +636,14 @@ def sync(db: Database, *, days: int = 7, max_results: int = 100) -> dict:
             continue
         stats["new"] += 1
 
-        status = STATUS_FOR.get(classification, "Seen")
-        add_ids = [label_ids["_parent"]]
-        if status in label_ids:
-            add_ids.append(label_ids[status])
+        status = status_from_classification(classification)
         try:
-            body: dict = {"addLabelIds": add_ids}
-            if remove_ids:
-                body["removeLabelIds"] = remove_ids
-            service.users().messages().modify(userId="me", id=mid, body=body).execute()
+            apply_thread_status(service, thread_id, status, label_ids, remove_ids)
             stats["labeled"] += 1
         except Exception as exc:
             log.warning("gmail label failed: %s", exc)
 
-        if classification == "other":
+        if not status:
             continue
 
         company = extract_company_guess(subject, from_addr, snippet)

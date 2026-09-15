@@ -164,6 +164,30 @@ def cmd_gmail_sync(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_weekly_report(args: argparse.Namespace) -> int:
+    from jobradar.weekly import write_report
+
+    db = Database()
+    path = write_report(db=db)
+    print(f"ok {path}")
+    return 0
+
+
+def cmd_gmail_reorganize(args: argparse.Namespace) -> int:
+    from jobradar import gmail as gmail_mod
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    db = Database()
+    stats = gmail_mod.reorganize(
+        db,
+        days=args.days,
+        max_threads=args.max_threads,
+        dry_run=args.dry_run,
+    )
+    print(stats)
+    return 0
+
+
 def cmd_verify_links(args: argparse.Namespace) -> int:
     """Probe job URLs from DB or --urls (optional silent --mark-bad quarantine)."""
     from jobradar.link_probe import probe_url
@@ -327,6 +351,18 @@ def build_parser() -> argparse.ArgumentParser:
     gs.add_argument("--days", type=int, default=7)
     gs.add_argument("--max", type=int, default=100)
     gs.set_defaults(func=cmd_gmail_sync)
+
+    gr = sub.add_parser(
+        "gmail-reorganize",
+        help="Backfill job threads with exclusive JobRadar/* labels (see docs/GMAIL_ORGANIZATION.md)",
+    )
+    gr.add_argument("--days", type=int, default=365, help="Lookback window")
+    gr.add_argument("--max-threads", type=int, default=500, help="Max threads to process")
+    gr.add_argument("--dry-run", action="store_true", help="Count only; do not modify Gmail")
+    gr.set_defaults(func=cmd_gmail_reorganize)
+
+    wr = sub.add_parser("weekly-report", help="Write docs/weekly/YYYY-MM-DD.md stats")
+    wr.set_defaults(func=cmd_weekly_report)
 
     vl = sub.add_parser("verify-links", help="Probe job URLs for liveness")
     vl.add_argument("--priority-only", action="store_true", default=False, help="Check only priority jobs")
