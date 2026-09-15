@@ -4,7 +4,19 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Notion Backlog Flooding Fix + Internships-Only Filter (PR #15)
+## Latest: Job apps org + cloud scan (this PR)
+
+**Problem:** Duplicate flat vs nested Gmail labels; Notion hard to navigate; scan required Mac awake (`scan --loop`).
+
+**Fixed / shipped:**
+- Gmail sync uses **only** nested `JobRadar/*` labels; better company/role parsing (no more `myworkday` / `greenhouse mail` as company)
+- Gmail→Notion creates/updates application rows even without a scout job match; sets Tier + Role family + Date applied
+- Notion Tracker: Date applied property + views **Pipeline**, **Needs Action**, **Priority Active**, **By Tier**
+- GitHub Actions **`cloud-scan`** every 30 min — laptop can stay closed (see `docs/CLOUD_SCAN.md`)
+
+**Rohan one-time:** add Actions secrets (Discord/Notion/optional Gmail JSON) and run workflow once.
+
+## Latest prior: Notion Backlog Flooding Fix + Internships-Only Filter (PR #15)
 
 **Problem 1:** Pipeline was creating Notion Backlog pages for ALL new jobs, including those that failed quality gates (bad URLs, old postings, etc.). Rohan's Notion filled with thousands of non-actionable listings.
 

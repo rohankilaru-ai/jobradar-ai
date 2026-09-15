@@ -36,7 +36,15 @@ def _date_prop(iso: str) -> dict:
     return {"date": {"start": day}}
 
 
-def page_properties(job: JobRecord, status: str = STATUS_SEEN, gmail_thread: str = "") -> dict:
+def page_properties(
+    job: JobRecord,
+    status: str = STATUS_SEEN,
+    gmail_thread: str = "",
+    *,
+    role_family: str = "",
+    tier: str = "",
+    date_applied: str = "",
+) -> dict:
     source = job.sources[0] if job.sources else ""
     props: dict = {
         "Name": {"title": [{"text": {"content": f"{job.company} — {job.title}"[:100]}}]},
@@ -56,6 +64,12 @@ def page_properties(job: JobRecord, status: str = STATUS_SEEN, gmail_thread: str
         props["URL"] = {"url": job.url}
     if gmail_thread:
         props["Gmail thread"] = {"url": gmail_thread}
+    if role_family:
+        props["Role family"] = {"select": {"name": role_family}}
+    if tier:
+        props["Tier"] = {"select": {"name": tier}}
+    if date_applied:
+        props["Date applied"] = _date_prop(date_applied)
     return props
 
 
@@ -103,11 +117,21 @@ def upsert_job(
     *,
     status: str = STATUS_SEEN,
     gmail_thread: str = "",
+    role_family: str = "",
+    tier: str = "",
+    date_applied: str = "",
 ) -> str | None:
     if not configured():
         return None
     notion = _client()
-    props = page_properties(job, status=status, gmail_thread=gmail_thread)
+    props = page_properties(
+        job,
+        status=status,
+        gmail_thread=gmail_thread,
+        role_family=role_family,
+        tier=tier,
+        date_applied=date_applied,
+    )
     existing = None
     if db:
         app = db.get_application(job.canonical_key)

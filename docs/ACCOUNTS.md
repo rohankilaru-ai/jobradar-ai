@@ -134,7 +134,28 @@ GMAIL_TOKEN=secrets/gmail-token.json
 ```
 
 7. `python -m jobradar gmail-auth` — browser login, writes `secrets/gmail-token.json`.
-8. `python -m jobradar gmail-sync` — last 7 days, then incremental. Labels: Applied, Interview, OA, Rejected, Offer, Recruiter, Waiting. Email is never used as an alert.
+8. `python -m jobradar gmail-sync` — last 7 days, then incremental.
+
+**Canonical Gmail labels** (nested — use these only):
+
+| Label | Meaning |
+|---|---|
+| `JobRadar/Applied` | Application confirmation |
+| `JobRadar/OA` | Online assessment invite |
+| `JobRadar/Interview` | Interview / screen |
+| `JobRadar/Final Round` | Final / onsite |
+| `JobRadar/Offer` | Offer |
+| `JobRadar/Rejected` | Rejection |
+| `JobRadar/Waiting` | Under review |
+| `JobRadar/Recruiter` | Recruiter outreach |
+| `JobRadar/Ghosted` | Role closed / filled |
+| `JobRadar/Backlog` | Misc job mail |
+
+Flat labels (`Applied`, `OA`, …) are legacy — hide them. Sync always writes nested `JobRadar/*` labels and updates Notion Status.
+
+Email is never used as an alert channel.
+
+**24/7 scanning (laptop closed):** see [CLOUD_SCAN.md](CLOUD_SCAN.md) — GitHub Actions `cloud-scan` every 30 minutes.
 
 ---
 

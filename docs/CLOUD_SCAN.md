@@ -1,0 +1,55 @@
+# Cloud scan (laptop closed)
+
+JobRadar can keep scanning internship sources **without your Mac awake** via GitHub Actions.
+
+## How it works
+
+Workflow: [`.github/workflows/cloud-scan.yml`](../.github/workflows/cloud-scan.yml)
+
+- Runs every **30 minutes** (UTC) on `ubuntu-latest`
+- Also runnable manually: Actions → **cloud-scan** → **Run workflow**
+- Restores/saves `data/jobradar.db` via Actions cache so scans are incremental (not a fresh seed every time)
+- Sends Discord / ntfy / Telegram alerts when secrets are set
+- Optionally runs `gmail-sync` when Gmail OAuth JSON secrets are set
+
+This replaces needing `python -m jobradar scan --loop` on a local machine.
+
+## One-time setup
+
+1. Open the repo on GitHub → **Settings → Secrets and variables → Actions → New repository secret**.
+
+2. Add at least one alert channel:
+
+| Secret | Required? |
+|---|---|
+| `DISCORD_WEBHOOK_URL` or `DISCORD_WEBHOOK_PRIORITY` / `_FORTUNE500` / `_OTHER` | Recommended |
+| `NTFY_TOPIC` | Optional |
+| `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Optional |
+| `NOTION_TOKEN` + `NOTION_DATABASE_ID` | Recommended (board updates) |
+
+3. Optional Gmail sync (inbox → labels + Notion status):
+
+| Secret | Value |
+|---|---|
+| `GMAIL_CLIENT_SECRETS_JSON` | Full contents of `secrets/gmail-client.json` |
+| `GMAIL_TOKEN_JSON` | Full contents of `secrets/gmail-token.json` (from `python -m jobradar gmail-auth` on your Mac once) |
+
+Refresh tokens expire if unused for long periods — re-run `gmail-auth` locally and update the secret if sync starts failing.
+
+4. Trigger once: **Actions → cloud-scan → Run workflow**. Confirm Discord/Notion update.
+
+5. You can close your laptop. Scans continue on GitHub's runners.
+
+## Local loop (optional)
+
+Still fine for development:
+
+```bash
+python -m jobradar scan --loop --interval 300
+```
+
+Prefer cloud-scan for production so sleep/travel does not stop alerts.
+
+## Cursor Cloud Agents
+
+Cursor agents (with Gmail + Notion MCP) are great for **inbox cleanup, labeling, and Notion board hygiene**. They are not a substitute for the scheduled Python scout — use **cloud-scan** for 24/7 source scanning.
