@@ -4,7 +4,25 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Job apps org + cloud scan (this PR)
+## Latest: Overnight #20 — Pause/Cap Defer Without Permanent Notify Silence
+
+**Problem:** When alerts are paused (`JOBRADAR_ALERTS_ENABLED=0`) or alert cap is hit (`JOBRADAR_MAX_ALERTS_PER_SCAN`), jobs were silently marked as notified in the database. This permanently silenced them - they would never get live Discord/ntfy/Telegram alerts even after:
+- Alerts were re-enabled
+- Cap was raised or later scans had spare capacity
+
+**Fixed / shipped (PR #TBD):**
+- **Pause defer:** When `JOBRADAR_ALERTS_ENABLED=0`, jobs write JSONL but do NOT record notification in DB. After re-enable, these jobs remain eligible for live alerts on a subsequent scan (if still new and within window).
+- **Cap defer:** When `JOBRADAR_MAX_ALERTS_PER_SCAN` overflow, jobs beyond the cap write JSONL but do NOT record notification. Later scans can alert previously deferred jobs (subject to window/cap/quality gates).
+- **Live alerts:** Jobs that receive actual Discord/ntfy/Telegram alerts are marked notified (prevents double-alert).
+- **Quality blocks:** Jobs failing quality gates (bad URL, example.com, outside window) still block as before; these are permanent blocks, not deferrals.
+- **Stats counters:** Added `alerts_paused` and `cap_deferred` to `PipelineStats` for clear logging.
+- **Tests:** 11 comprehensive tests (`tests/test_pause_cap_defer.py`) prove defer behavior; all 273 tests pass.
+
+**Implementation:** `Notifier.notify()` gained `record_as_notified` parameter (default True). Pipeline detects pause/cap conditions and sets `record_as_notified=False` for deferred jobs. Quality gates remain unchanged.
+
+**Impact:** Alerts can be safely paused for maintenance without losing jobs. Alert cap overflow no longer permanently silences Priority jobs that lost slots before overnight #19's ordering lands. All 273 tests green.
+
+## Latest prior: Job apps org + cloud scan (this PR)
 
 **Problem:** Duplicate flat vs nested Gmail labels; Notion hard to navigate; scan required Mac awake (`scan --loop`).
 
@@ -155,6 +173,10 @@ python -m jobradar verify-links --urls https://example.com/job1 https://example.
 
 - Director keys (Grok Bot webhook URLs) — requires Grok Bot UI credential access
 - Gmail setup (Phase 4) — `secrets/gmail-client.json` OAuth flow
+
+## Open overnight draft stack (do NOT merge or rebase without Rohan)
+
+Drafts #27–#36 (and possibly older #22/#23) remain open and unmerged. Draft PR #TBD (overnight #20, pause/cap defer) is self-contained against current main and does not depend on the stack.
 
 ## Key modules
 
