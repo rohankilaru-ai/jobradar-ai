@@ -17,7 +17,7 @@ from urllib.parse import quote, urlparse
 import httpx
 
 from jobradar.db import Database
-from jobradar.link_probe import is_placeholder_url
+from jobradar.link_probe import is_placeholder_url, probe_url as detailed_probe_url
 from jobradar.models import JobRecord
 from jobradar.tier import classify_company_tier
 
@@ -370,12 +370,11 @@ def link_probe_enabled() -> bool:
 
 def probe_url(url: str, *, timeout: float = 3.0) -> bool:
     """
-    HTTP HEAD/GET probe. Returns True if 2xx or acceptable, False otherwise.
+    HTTP HEAD/GET probe. Returns True if 2xx, False otherwise.
+    Requires 2xx; skip 404; 403 only if job-shaped URL (has /job or /career or /position).
     
-    Delegates to link_probe.probe_url_for_notify which provides unified probe logic
-    shared between verify-links CLI and notify gates. Preserves notify semantics:
-    - Accept 403 for job-shaped URLs (common ATS behavior)
-    - Bypass when JOBRADAR_LINK_PROBE=0 (tests)
+    NOTE: This function is used for backward compatibility. For distinguishing
+    transient vs hard failures, use link_probe.probe_url instead.
     """
     if not link_probe_enabled():
         return True  # Bypass probe in tests
@@ -394,6 +393,10 @@ def job_notify_block_reason(job: JobRecord) -> str | None:
     """
     Check if job should be blocked from notification. Returns block reason or None if OK.
     This is the quality gate BEFORE Discord/ntfy/Telegram.
+    
+    Note: Transient probe failures (timeout, 5xx, connection error) return None here
+    so they can be deferred (not permanently blocked). Check has_transient_probe_failure()
+    separately to handle deferral.
     """
     # Check for HTML tags in company/title
     if _HTML_TAG.search(job.company or ""):
@@ -421,11 +424,32 @@ def job_notify_block_reason(job: JobRecord) -> str | None:
         domain = _extract_domain(url)
         return f"domain mismatch: company '{job.company}' vs URL domain '{domain}'"
     
-    # HTTP probe
-    if not probe_url(url):
-        return f"URL probe failed: {url}"
+    # HTTP probe - use detailed probe to distinguish transient vs hard failures
+    if link_probe_enabled():
+        probe_result = detailed_probe_url(url)
+        if probe_result == "bad":
+            # Hard failure (404, non-job 403, etc.) - permanent block
+            return f"URL probe failed (hard): {url}"
+        # probe_result == "error" (transient) returns None to allow deferral
+        # probe_result == "good" returns None to allow notification
     
     return None
+
+
+def has_transient_probe_failure(job: JobRecord) -> bool:
+    """
+    Check if job has a transient probe failure (timeout, 5xx, connection error).
+    These should defer (not alert now) but not permanently block (can retry later).
+    """
+    if not link_probe_enabled():
+        return False
+    
+    url = sanitize_job_url(job.url)
+    if not url or is_placeholder_url(url):
+        return False  # Not transient, just bad
+    
+    probe_result = detailed_probe_url(url)
+    return probe_result == "error"
 
 
 def is_link_probe_enabled() -> bool:
@@ -642,18 +666,31 @@ class Notifier:
             record_as_notified: If False, don't mark as notified in DB (allows retry later)
         
         Returns:
-            True if notification was written, False if already notified or blocked
+            True if notification was written, False if already notified or blocked.
+            Returns True if notification was processed (even if deferred due to transient failure).
         """
         if self.db and self.db.was_notified(job.canonical_key):
             return False
 
+        # Check for transient probe failure first (before hard blocks)
+        # Transient failures defer without marking notified (allow retry later)
+        is_transient = False
         if not silent:
             # Quality gate: check if job should be blocked (main/#3 gates)
             block_reason = job_notify_block_reason(job)
             if block_reason:
                 log.info("skipping notify for %s: %s", job.canonical_key, block_reason)
                 return False
-            job.url = sanitize_job_url(job.url)
+            
+            # Check for transient probe failure (timeout, 5xx, connection error)
+            is_transient = has_transient_probe_failure(job)
+            if is_transient:
+                log.info("deferring notify for %s: transient probe failure", job.canonical_key)
+                # Continue to write JSONL but skip live alerts and don't mark notified
+                silent = True  # Force silent to skip Discord/ntfy/Telegram
+                record_as_notified = False  # Don't mark as notified (allow retry later)
+            else:
+                job.url = sanitize_job_url(job.url)
 
         payload = format_alert(job)
         record = {
@@ -664,16 +701,20 @@ class Notifier:
             "text": payload,
             "job": job.webhook_payload()["job"],
             "silent": silent,
+            "deferred": is_transient,  # Track deferred state for stats
         }
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
         
-        # Only record as notified if requested (skip for pause/cap-deferred jobs)
+        # Only record as notified if requested (skip for pause/cap/probe-deferred jobs)
         if self.db and record_as_notified:
             self.db.record_notification(job.canonical_key, "jsonl", payload, record["ts"])
 
         if silent:
-            log.debug("Silent notification (JSONL only): %s", job.canonical_key)
+            if is_transient:
+                log.debug("Deferred notification (transient probe failure): %s", job.canonical_key)
+            else:
+                log.debug("Silent notification (JSONL only): %s", job.canonical_key)
             return True
 
         # Determine company tier for Discord routing

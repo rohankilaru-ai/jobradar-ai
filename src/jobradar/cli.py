@@ -95,7 +95,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
             )
         print(
             f"scan done fetched={stats.fetched} kept={stats.kept} "
-            f"new={stats.new} notified={stats.notified} alerted={stats.alerted}"
+            f"new={stats.new} notified={stats.notified} alerted={stats.alerted} "
+            f"probe_deferred={stats.probe_deferred}"
         )
         if stats.alert_cap_hit:
             print(

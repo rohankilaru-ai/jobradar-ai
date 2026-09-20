@@ -190,10 +190,12 @@ def test_should_send_alerts_empty_url():
     assert should_send_alerts(job) is False
 
 
-@patch("jobradar.notify.probe_url")
-def test_should_send_alerts_failed_probe(mock_probe):
-    """Job that fails probe should not send alerts."""
-    mock_probe.return_value = False
+@patch("jobradar.notify.detailed_probe_url")
+def test_should_send_alerts_failed_probe(mock_probe, monkeypatch):
+    """Job that fails probe with hard failure should not send alerts."""
+    monkeypatch.setenv("JOBRADAR_LINK_PROBE", "1")
+    # Return "bad" (hard failure like 404) to block alerts
+    mock_probe.return_value = "bad"
     now = datetime.now(timezone.utc)
     job = JobRecord(
         company="Stripe",
