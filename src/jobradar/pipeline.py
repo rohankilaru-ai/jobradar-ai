@@ -53,9 +53,13 @@ def run_scan(
     stats.seed_mode = was_empty and not alert_all
     results: list[ScoutResult] = scout_all(db, sources=sources)
     seen_in_pass: list[JobRecord] = []
-    from jobradar.notify import max_alerts_per_scan
+    from jobradar.notify import max_alerts_per_scan, should_send_alerts
+    from jobradar.tier import classify_company_tier
 
     alert_cap = max_alerts_per_scan()
+
+    # Collect all new jobs + candidates for alerting
+    alertable_jobs: list[JobRecord] = []
 
     for result in results:
         if result.error:
@@ -88,25 +92,55 @@ def run_scan(
             if stored.is_closed:
                 continue
             if is_new and within_notify_window(stored):
-                from jobradar import notion as notion_mod
-                from jobradar.notify import should_send_alerts
+                if should_send_alerts(stored):
+                    alertable_jobs.append(stored)
 
-                should_alert = should_send_alerts(stored)
-                if should_alert and alert_cap and stats.alerted >= alert_cap:
-                    should_alert = False
-                    stats.alert_cap_hit = True
-                if notifier.notify(stored, silent=not should_alert):
-                    stats.notified += 1
-                if should_alert:
-                    stats.alerted += 1
-                    try:
-                        director_enqueue(stored, db=db)
-                    except Exception as exc:
-                        log.warning("director enqueue failed: %s", exc)
-                    try:
-                        notion_mod.upsert_job(stored, db=db, status=notion_mod.STATUS_BACKLOG)
-                    except Exception as exc:
-                        log.warning("notion upsert failed: %s", exc)
+    # Priority-first ordering: sort alertable jobs by tier before applying cap
+    # Tier order: priority (0) → fortune500 (1) → other (2)
+    # Within same tier, stable order by (company, title, canonical_key)
+    if alertable_jobs:
+        tier_order = {"priority": 0, "fortune500": 1, "other": 2}
+        alertable_jobs.sort(
+            key=lambda j: (
+                tier_order.get(classify_company_tier(j.company), 2),
+                j.company.lower(),
+                j.title.lower(),
+                j.canonical_key,
+            )
+        )
+
+    # Apply alert cap to sorted list
+    jobs_to_alert = alertable_jobs[:alert_cap] if alert_cap else alertable_jobs
+    if alert_cap and len(alertable_jobs) > alert_cap:
+        stats.alert_cap_hit = True
+        log.info(
+            "Alert cap: %d/%d jobs will be alerted (Priority-first order)",
+            len(jobs_to_alert),
+            len(alertable_jobs),
+        )
+
+    # Silent-store all alertable jobs (including those past the cap)
+    for job in alertable_jobs:
+        if job not in jobs_to_alert:
+            if notifier.notify(job, silent=True):
+                stats.notified += 1
+
+    # Send live alerts for jobs within the cap
+    for job in jobs_to_alert:
+        from jobradar import notion as notion_mod
+
+        if notifier.notify(job, silent=False):
+            stats.notified += 1
+        stats.alerted += 1
+        try:
+            director_enqueue(job, db=db)
+        except Exception as exc:
+            log.warning("director enqueue failed: %s", exc)
+        try:
+            notion_mod.upsert_job(job, db=db, status=notion_mod.STATUS_BACKLOG)
+        except Exception as exc:
+            log.warning("notion upsert failed: %s", exc)
+
     return stats
 
 
