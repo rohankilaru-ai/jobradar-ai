@@ -31,31 +31,49 @@ INCLUDE = (
 
 EXCLUDE = (
     # Medical/healthcare roles
-    "nursing", "nurse", "pharmacist", "dental", "medical assistant", 
-    "registered nurse", "physician", "clinical", "healthcare",
+    "nursing", "nurse", "pharmacist", "pharmacy tech", "dental", "medical assistant", 
+    "registered nurse", "physician", "clinical", "healthcare", "therapist", "physical therapy",
+    "occupational therapy", "medical scribe", "patient care",
     # Finance/accounting (non-technical)
-    "tax intern", "tax analyst", "tax accountant", "accounting intern", 
+    "tax intern", "tax analyst", "tax accountant", "tax preparer", "accounting intern", 
     "accountant", "bookkeeper", "accounts payable", "accounts receivable", "payroll",
+    "audit intern", "auditor", "financial advisor", "wealth management", "personal banker",
+    "investment banking analyst", "private equity analyst", "credit analyst",
     # Legal
-    "legal intern", "paralegal", "law clerk", "legal assistant",
+    "legal intern", "paralegal", "law clerk", "legal assistant", "compliance intern",
+    "legal operations",
     # HR/recruiting/admin
-    "social work", "hr intern", "human resources", "recruiter intern",
-    "administrative assistant", "office assistant", "receptionist",
+    "social work", "hr intern", "human resources", "recruiter intern", "recruiting coordinator",
+    "administrative assistant", "office assistant", "receptionist", "office manager",
+    "executive assistant",
     # Sales/marketing/business development (non-technical)
     "marketing intern", "sales intern", "real estate", "business development intern",
-    "account executive intern", "sales rep", "sales associate",
+    "account executive intern", "sales rep", "sales associate", "sales development",
+    "account manager intern", "customer success intern", "partnership intern",
+    "growth marketing intern", "brand marketing", "product marketing intern",
     # Content/media (non-technical)
-    "content writer", "copywriter", "journalist", "editorial intern",
-    "communications intern", "public relations", "pr intern",
-    # Operations/logistics (non-technical)
+    "content writer", "copywriter", "journalist", "editorial intern", "editor",
+    "communications intern", "public relations", "pr intern", "social media intern",
+    "media producer", "content creator",
+    # Operations/logistics/supply chain (non-technical)
     "warehouse", "logistics intern", "supply chain intern", "operations intern",
-    "inventory", "driver",
+    "inventory", "driver", "business operations intern", "program coordinator",
+    "project coordinator intern", "operations coordinator",
     # Service/hospitality
-    "customer service intern", "retail", "cashier", "server", "host",
+    "customer service intern", "retail", "cashier", "server", "host", "barista",
+    "front desk", "concierge",
     # Education/tutoring
-    "teacher", "tutor", "teaching assistant", "camp counselor",
+    "teacher", "tutor", "teaching assistant", "camp counselor", "instructor",
     # Arts/design (non-technical)
-    "graphic design intern", "photographer", "videographer", "artist",
+    "graphic design intern", "photographer", "videographer", "artist", "illustrator",
+    "ux designer intern", "ui designer intern", "visual designer",
+    # Construction/trades/manual labor
+    "construction", "electrician", "plumber", "mechanic", "maintenance", "technician intern",
+    "hvac", "welder", "carpenter",
+    # Insurance
+    "insurance intern", "claims adjuster", "underwriter intern",
+    # Consulting (non-technical management consulting)
+    "management consulting intern", "strategy consulting intern", "business consultant intern",
 )
 
 # New-grad / full-time signals (exclude unless also clearly an intern role)
@@ -71,7 +89,7 @@ NEWGRAD_SIGNALS = (
 GRAD_LEVEL_SIGNALS = (
     "phd", "ph.d", "ph.d.", "doctoral", "doctorate",
     "master's", "masters ", " masters", "mba ",
-    "post-grad", "postgrad", "post graduate", "postgraduate",
+    "post-grad", "postgrad", "post graduate", "postgraduate", "postdoc", "post-doc",
     "graduate student", "grad student",
     " - ms", " – ms", " — ms", "(ms)", " ms,", " ms ",
     "ms only", "ms/phd", "phd/ms",
@@ -103,7 +121,10 @@ def should_keep(job: JobRecord) -> bool:
         # Allow explicit undergrad dual-track like "BS/MS" only when PhD is absent
         if "phd" in text or "ph.d" in text or "doctoral" in text or "doctorate" in text:
             return False
-        if "bs/ms" in text or "bs / ms" in text or "b.s./m.s" in text:
+        # Allow undergrad-eligible dual listings (BS/MS, BS / MS, B.S./M.S, etc.)
+        if any(pattern in text for pattern in ("bs/ms", "bs / ms", "b.s./m.s", "b.s. / m.s.",
+                                                "bachelor/master", "bachelor / master",
+                                                "bachelor's/master's", "bachelor's / master's")):
             pass  # undergrad-eligible dual listing
         else:
             return False
@@ -116,14 +137,27 @@ def should_keep(job: JobRecord) -> bool:
     if has_newgrad and not has_intern:
         return False
     
+    # Check exclude list
     if any(x in text for x in EXCLUDE):
-        # still keep if strong include signal (e.g. "tax" false positive in other context)
-        if any(x in text for x in ("software", "engineer", "machine learning", "data science")):
+        # Strong technical signals override exclude matches (e.g. "Tax Software Engineer")
+        # This prevents false negatives on edge cases where exclude keywords appear
+        # in otherwise-valid technical roles
+        strong_signals = (
+            "software", "swe ", " swe", "engineer", "engineering", "developer", 
+            "machine learning", "data science", "data scientist", "data engineer",
+            " ml ", " ai ", "artificial intelligence", "devops", "backend", "frontend",
+            "full stack", "fullstack", "platform engineer", "systems engineer",
+            "quant", "infrastructure engineer",
+        )
+        if any(sig in text for sig in strong_signals):
             return True
         return False
+    
+    # Positive technical signals
     if any(x in text for x in INCLUDE):
         return True
-    # recall-first: keep unknown rather than drop
+    
+    # Recall-first: unknown roles default to keep (false positives OK, missed jobs not OK)
     return True
 
 

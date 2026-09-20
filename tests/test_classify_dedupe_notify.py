@@ -205,6 +205,197 @@ def test_snippet_context_matters():
     )) is True
 
 
+# --- Overnight #14: Enhanced exclude-list tuning tests ---
+
+
+def test_exclude_additional_finance_nontechnical():
+    """Additional non-technical finance roles (IB, PE, wealth mgmt) should be excluded."""
+    assert should_keep(JobRecord(company="Bank", title="Investment Banking Analyst Intern")) is False
+    assert should_keep(JobRecord(company="Finance", title="Private Equity Analyst Intern")) is False
+    assert should_keep(JobRecord(company="Wealth Co", title="Wealth Management Intern")) is False
+    assert should_keep(JobRecord(company="Bank", title="Personal Banker Intern")) is False
+    assert should_keep(JobRecord(company="Credit Union", title="Credit Analyst Intern")) is False
+    assert should_keep(JobRecord(company="Audit Firm", title="Audit Intern")) is False
+    assert should_keep(JobRecord(company="Tax Prep", title="Tax Preparer Intern")) is False
+    assert should_keep(JobRecord(company="Finance Corp", title="Financial Advisor Intern")) is False
+
+
+def test_exclude_consulting_nontechnical():
+    """Non-technical management consulting roles should be excluded."""
+    assert should_keep(JobRecord(company="Consulting Firm", title="Management Consulting Intern")) is False
+    assert should_keep(JobRecord(company="Strategy Co", title="Strategy Consulting Intern")) is False
+    assert should_keep(JobRecord(company="Business Consulting", title="Business Consultant Intern")) is False
+
+
+def test_exclude_construction_trades():
+    """Construction, trades, and manual labor roles should be excluded."""
+    assert should_keep(JobRecord(company="Construction Co", title="Construction Intern")) is False
+    assert should_keep(JobRecord(company="Electric Co", title="Electrician Intern")) is False
+    assert should_keep(JobRecord(company="Plumbing Co", title="Plumber Intern")) is False
+    assert should_keep(JobRecord(company="Auto Shop", title="Mechanic Intern")) is False
+    assert should_keep(JobRecord(company="Facilities", title="Maintenance Intern")) is False
+    assert should_keep(JobRecord(company="HVAC Co", title="HVAC Intern")) is False
+
+
+def test_exclude_insurance():
+    """Insurance roles should be excluded."""
+    assert should_keep(JobRecord(company="Insurance Co", title="Insurance Intern")) is False
+    assert should_keep(JobRecord(company="Claims Co", title="Claims Adjuster Intern")) is False
+    assert should_keep(JobRecord(company="Underwriting", title="Underwriter Intern")) is False
+
+
+def test_exclude_additional_healthcare():
+    """Additional healthcare roles (therapist, scribe, patient care) should be excluded."""
+    assert should_keep(JobRecord(company="Clinic", title="Physical Therapy Intern")) is False
+    assert should_keep(JobRecord(company="Rehab Center", title="Occupational Therapy Intern")) is False
+    assert should_keep(JobRecord(company="Hospital", title="Medical Scribe Intern")) is False
+    assert should_keep(JobRecord(company="Healthcare", title="Patient Care Intern")) is False
+    assert should_keep(JobRecord(company="Pharmacy", title="Pharmacy Tech Intern")) is False
+    assert should_keep(JobRecord(company="Mental Health", title="Therapist Intern")) is False
+
+
+def test_exclude_additional_hr_admin():
+    """Additional HR/admin roles (EA, recruiting coordinator) should be excluded."""
+    assert should_keep(JobRecord(company="Corp", title="Executive Assistant Intern")) is False
+    assert should_keep(JobRecord(company="Office", title="Office Manager Intern")) is False
+    assert should_keep(JobRecord(company="Recruiting", title="Recruiting Coordinator Intern")) is False
+
+
+def test_exclude_additional_sales_marketing():
+    """Additional sales/marketing roles (SDR, customer success, growth) should be excluded."""
+    assert should_keep(JobRecord(company="Sales Co", title="Sales Development Intern")) is False
+    assert should_keep(JobRecord(company="SaaS Co", title="Customer Success Intern")) is False
+    assert should_keep(JobRecord(company="Startup", title="Account Manager Intern")) is False
+    assert should_keep(JobRecord(company="Marketing", title="Growth Marketing Intern")) is False
+    assert should_keep(JobRecord(company="Brand Co", title="Brand Marketing Intern")) is False
+    assert should_keep(JobRecord(company="Product Co", title="Product Marketing Intern")) is False
+    assert should_keep(JobRecord(company="Partnership", title="Partnership Intern")) is False
+
+
+def test_exclude_additional_content_media():
+    """Additional content/media roles (social media, editor, producer) should be excluded."""
+    assert should_keep(JobRecord(company="Media Co", title="Social Media Intern")) is False
+    assert should_keep(JobRecord(company="Publishing", title="Editor Intern")) is False
+    assert should_keep(JobRecord(company="Production Co", title="Media Producer Intern")) is False
+    assert should_keep(JobRecord(company="Creator Co", title="Content Creator Intern")) is False
+
+
+def test_exclude_additional_operations():
+    """Additional non-tech operations roles (program coord, business ops) should be excluded."""
+    assert should_keep(JobRecord(company="Ops Co", title="Business Operations Intern")) is False
+    assert should_keep(JobRecord(company="Program", title="Program Coordinator Intern")) is False
+    assert should_keep(JobRecord(company="Projects", title="Project Coordinator Intern")) is False
+    assert should_keep(JobRecord(company="Operations", title="Operations Coordinator Intern")) is False
+
+
+def test_exclude_additional_design():
+    """Additional non-tech design roles (UX/UI without eng) should be excluded."""
+    assert should_keep(JobRecord(company="Design Co", title="UX Designer Intern")) is False
+    assert should_keep(JobRecord(company="UI Studio", title="UI Designer Intern")) is False
+    assert should_keep(JobRecord(company="Visual Design", title="Visual Designer Intern")) is False
+    assert should_keep(JobRecord(company="Illustration", title="Illustrator Intern")) is False
+
+
+def test_exclude_additional_service():
+    """Additional service roles (barista, front desk, concierge) should be excluded."""
+    assert should_keep(JobRecord(company="Coffee Shop", title="Barista Intern")) is False
+    assert should_keep(JobRecord(company="Hotel", title="Front Desk Intern")) is False
+    assert should_keep(JobRecord(company="Hotel", title="Concierge Intern")) is False
+
+
+def test_strong_include_overrides_exclude_edge_cases():
+    """Strong technical signals should override exclude matches in edge cases."""
+    # Tax + Software Engineer = keep (tax is exclude keyword but software engineer is strong signal)
+    assert should_keep(JobRecord(company="TaxTech", title="Tax Software Engineer Intern")) is True
+    assert should_keep(JobRecord(company="TurboTax", title="Software Engineer - Tax Products")) is True
+    
+    # Audit + Data Engineer = keep
+    assert should_keep(JobRecord(company="AuditTech", title="Audit Data Engineer Intern")) is True
+    
+    # Legal + ML Engineer = keep
+    assert should_keep(JobRecord(company="LegalTech", title="Legal ML Engineer Intern")) is True
+    
+    # Healthcare + Data Science = keep
+    assert should_keep(JobRecord(company="HealthTech", title="Healthcare Data Scientist Intern")) is True
+    
+    # Marketing + ML = keep
+    assert should_keep(JobRecord(company="MarketingAI", title="Marketing ML Engineer Intern")) is True
+    
+    # Operations + Platform Engineer = keep
+    assert should_keep(JobRecord(company="OpsTech", title="Operations Platform Engineer Intern")) is True
+    
+    # Finance + Quant = keep
+    assert should_keep(JobRecord(company="HedgeFund", title="Finance Quant Intern")) is True
+
+
+def test_grad_level_hard_drop_phd_only():
+    """PhD-only roles should be hard-dropped even with intern signal."""
+    assert should_keep(JobRecord(company="Research Lab", title="Research Intern - PhD")) is False
+    assert should_keep(JobRecord(company="AI Lab", title="ML Research Intern (PhD only)")) is False
+    assert should_keep(JobRecord(company="University", title="Summer Intern - Ph.D. Candidates")) is False
+    assert should_keep(JobRecord(company="Tech Co", title="Doctoral Research Intern")) is False
+    assert should_keep(JobRecord(company="Lab", title="Postdoc Research Intern")) is False
+    assert should_keep(JobRecord(company="Company", title="Intern - MS/PhD")) is False
+    assert should_keep(JobRecord(company="Firm", title="Research Intern (PhD/MS)")) is False
+
+
+def test_grad_level_allow_bs_ms_dual_track():
+    """BS/MS dual-track roles should be kept (undergrad-eligible)."""
+    assert should_keep(JobRecord(company="Tech Co", title="Software Engineer Intern - BS/MS")) is True
+    assert should_keep(JobRecord(company="Startup", title="ML Intern (BS / MS)")) is True
+    assert should_keep(JobRecord(company="Company", title="SWE Intern - B.S./M.S.")) is True
+    assert should_keep(JobRecord(company="Firm", title="Data Engineer Intern - Bachelor/Master")) is True
+    assert should_keep(JobRecord(company="AI Lab", title="Research Intern - Bachelor's/Master's")) is True
+    assert should_keep(JobRecord(company="Tech", title="Engineering Intern (Bachelor / Master Candidates)")) is True
+
+
+def test_grad_level_drop_masters_only():
+    """Masters-only roles without PhD but also without BS should be dropped."""
+    assert should_keep(JobRecord(company="Research Lab", title="Research Intern - Master's")) is False
+    assert should_keep(JobRecord(company="Company", title="ML Intern (MS only)")) is False
+    assert should_keep(JobRecord(company="Lab", title="Graduate Student Intern")) is False
+    assert should_keep(JobRecord(company="Firm", title="Intern - MS Candidates")) is False
+
+
+def test_newgrad_only_additional_patterns():
+    """Additional new-grad pattern variations should be excluded without intern signal."""
+    assert should_keep(JobRecord(company="Tech", title="Software Engineer - Early Career")) is False
+    assert should_keep(JobRecord(company="Startup", title="SDE - College Graduate")) is False
+    assert should_keep(JobRecord(company="Company", title="ML Engineer - University Grad")) is False
+    assert should_keep(JobRecord(company="Firm", title="Data Engineer - Grad Program")) is False
+
+
+def test_newgrad_plus_intern_keep_additional_patterns():
+    """New-grad roles that also have intern signals should be kept."""
+    assert should_keep(JobRecord(company="Tech", title="Software Intern - Early Career Program")) is True
+    assert should_keep(JobRecord(company="Startup", title="Co-op - Recent Graduates")) is True
+    assert should_keep(JobRecord(company="Company", title="Fall Intern (New Grad Track)")) is True
+    assert should_keep(JobRecord(company="Firm", title="Winter Internship - Entry Level")) is True
+
+
+def test_recall_first_unknown_roles():
+    """Unknown/ambiguous roles without clear exclude/include signals should default to keep."""
+    # Pure unknown roles
+    assert should_keep(JobRecord(company="Company", title="Emerging Tech Intern")) is True
+    assert should_keep(JobRecord(company="Startup", title="Innovation Intern")) is True
+    assert should_keep(JobRecord(company="Firm", title="Technology Intern")) is True
+    
+    # Borderline roles (could be tech or non-tech)
+    assert should_keep(JobRecord(company="Corp", title="Product Intern")) is True
+    assert should_keep(JobRecord(company="Tech", title="Strategy Intern")) is True
+    assert should_keep(JobRecord(company="Startup", title="Growth Intern")) is True
+
+
+def test_intern_signals_override_newgrad():
+    """Intern signals should override new-grad exclusion (but not grad-level exclusion)."""
+    # New-grad + intern = keep
+    assert should_keep(JobRecord(company="Tech", title="New Grad Software Engineer - Summer Intern")) is True
+    assert should_keep(JobRecord(company="Startup", title="Full-Time Track Co-op")) is True
+    
+    # But PhD + intern = still drop
+    assert should_keep(JobRecord(company="Lab", title="PhD Research Intern - Summer")) is False
+
+
 # --- Original tests preserved below ---
 
 
