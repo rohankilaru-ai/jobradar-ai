@@ -4,7 +4,34 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Fix failing pytest on main (PR #39)
+## Latest: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
+
+**Branch:** `cursor/overnight-21-probe-defer-0a52` → squash-merged to main
+
+**Problem:** Transient link-probe failures (timeout, 5xx, connection errors) were permanently silencing jobs by marking `was_notified`. Later scans could not re-alert even after URLs recovered.
+
+**Fixed / shipped:**
+- **Transient vs hard probe failures**: Distinguish between transient (timeout, 5xx, 429, connection error) and hard (404, empty URL, example.com) failures
+- **Transient handling**: Write JSONL for persistence, skip live alerts, do NOT mark `was_notified` → allows retry when URL recovers
+- **Hard failures**: Permanent blocks (skip live alerts, existing behavior preserved)
+- **Successful alerts**: Mark `was_notified`, prevent double-alert (unchanged)
+- **Stats tracking**: Pipeline now tracks `probe_deferred` stat, included in scan output
+- **Merged with pause/cap defer**: Works alongside PR #39's `record_as_notified` parameter and priority-first ordering
+- **Implementation**:
+  - `link_probe.py`: Update `probe_url()` to return `"good"` (2xx/3xx), `"bad"` (4xx except 429), or `"error"` (5xx, 429, timeout, connection errors)
+  - `notify.py`: Add `has_transient_probe_failure()`, update `job_notify_block_reason()`, handle transient failures in `Notifier.notify()` (integrates with `record_as_notified` param)
+  - `pipeline.py`: Add `probe_deferred` stat alongside `alerts_paused` and `cap_deferred`, preserve priority-first ordering
+  - `cli.py`: Include `probe_deferred` in scan output
+- **Tests**: 13 new tests in `tests/test_probe_defer.py`
+- Rebased onto main after PR #39 merged (parser hardening + pause/cap defer)
+
+**Impact:**
+- Transient network issues no longer permanently silence jobs
+- Jobs with temporary probe failures can be re-alerted on next successful scan
+- Three deferral categories now tracked: `probe_deferred`, `alerts_paused`, `cap_deferred`
+- All pytest passing ✅
+
+## Latest prior: Fix failing pytest on main (PR #39)
 
 **Problem:** Overnight PRs #27–#36 squash-merged to main resulted in ~9 pytest failures:
 1. Parser hardening tests (PR #28) landed but actual parser changes lost during conflict resolution
@@ -34,8 +61,6 @@
 - Safe pause: alerts can be paused without permanently silencing jobs
 - Cap overflow recovery: jobs past cap can alert on later scans
 - All 501 tests passing ✅
-
-**Status:** PR #38 (transient probe defer) can now be rebased cleanly onto main after #39 merges.
 
 ## Latest prior: Overnight #12 — Product-completion tests (PR #29)
 
@@ -204,7 +229,7 @@ python -m jobradar verify-links --urls https://example.com/job1 https://example.
 
 **Remaining (not yet merged):**
 1. Director `.env` keys wiring (by Rohan after specialist UI exposes webhook URLs)
-2. Optional: Twilio SMS + Discord webhook fine-tuning
+2. Twilio SMS deferred (ntfy is the phone push path)
 3. Later: Gmail inbox bot (Phase 4), 24/7 VM for Python loop
 4. Do **not** scrape `pittcsc/Summer2027-Internships`
 
@@ -212,6 +237,7 @@ python -m jobradar verify-links --urls https://example.com/job1 https://example.
 
 - Director keys (Grok Bot webhook URLs) — requires Grok Bot UI credential access
 - Gmail setup (Phase 4) — `secrets/gmail-client.json` OAuth flow
+- Actions Discord/Notion secrets (cloud-scan workflow)
 
 ## Key modules
 
