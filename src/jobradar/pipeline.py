@@ -26,6 +26,8 @@ class PipelineStats:
     notified: int = 0
     alerted: int = 0
     alert_cap_hit: bool = False
+    alerts_paused: int = 0
+    cap_deferred: int = 0
     seeded: int = 0
     source_errors: list[str] = field(default_factory=list)
     seed_mode: bool = False
@@ -89,24 +91,50 @@ def run_scan(
                 continue
             if is_new and within_notify_window(stored):
                 from jobradar import notion as notion_mod
-                from jobradar.notify import should_send_alerts
+                from jobradar.notify import should_send_alerts, alerts_enabled
 
+                # Check if alerts are enabled at all (not just quality gates)
+                alerts_on = alerts_enabled()
+                
+                # Check if this job passes quality gates
                 should_alert = should_send_alerts(stored)
-                if should_alert and alert_cap and stats.alerted >= alert_cap:
+                
+                # Track reason for deferral
+                defer_reason = None
+                record_notification = True
+                
+                if not alerts_on:
+                    # Alerts paused: don't record notification, allow retry later
+                    record_notification = False
+                    defer_reason = "alerts_paused"
+                    stats.alerts_paused += 1
+                elif should_alert and alert_cap and stats.alerted >= alert_cap:
+                    # Cap hit: don't record notification, allow retry later
                     should_alert = False
+                    record_notification = False
+                    defer_reason = "cap_deferred"
                     stats.alert_cap_hit = True
-                if notifier.notify(stored, silent=not should_alert):
+                    stats.cap_deferred += 1
+                elif not should_alert:
+                    # Quality block (outside window, bad URL, etc): record as usual
+                    # These are permanent blocks, not deferrals
+                    pass
+                
+                # Notify: silent if not should_alert, record only if not deferred
+                if notifier.notify(stored, silent=not should_alert, record_as_notified=record_notification):
                     stats.notified += 1
-                if should_alert:
-                    stats.alerted += 1
-                    try:
-                        director_enqueue(stored, db=db)
-                    except Exception as exc:
-                        log.warning("director enqueue failed: %s", exc)
-                    try:
-                        notion_mod.upsert_job(stored, db=db, status=notion_mod.STATUS_BACKLOG)
-                    except Exception as exc:
-                        log.warning("notion upsert failed: %s", exc)
+                    if should_alert:
+                        stats.alerted += 1
+                        try:
+                            director_enqueue(stored, db=db)
+                        except Exception as exc:
+                            log.warning("director enqueue failed: %s", exc)
+                        try:
+                            notion_mod.upsert_job(stored, db=db, status=notion_mod.STATUS_BACKLOG)
+                        except Exception as exc:
+                            log.warning("notion upsert failed: %s", exc)
+                    elif defer_reason:
+                        log.debug("Job deferred (%s): %s", defer_reason, stored.canonical_key)
     return stats
 
 
