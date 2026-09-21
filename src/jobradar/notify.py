@@ -370,8 +370,12 @@ def link_probe_enabled() -> bool:
 
 def probe_url(url: str, *, timeout: float = 3.0) -> bool:
     """
-    HTTP HEAD/GET probe. Returns True if 2xx, False otherwise.
-    Requires 2xx; skip 404; 403 only if job-shaped URL (has /job or /career or /position).
+    HTTP HEAD/GET probe. Returns True if 2xx or acceptable, False otherwise.
+    
+    Delegates to link_probe.probe_url_for_notify which provides unified probe logic
+    shared between verify-links CLI and notify gates. Preserves notify semantics:
+    - Accept 403 for job-shaped URLs (common ATS behavior)
+    - Bypass when JOBRADAR_LINK_PROBE=0 (tests)
     """
     if not link_probe_enabled():
         return True  # Bypass probe in tests
@@ -380,32 +384,10 @@ def probe_url(url: str, *, timeout: float = 3.0) -> bool:
     if not url or not url.startswith("http"):
         return False
     
-    try:
-        # Try HEAD first (faster)
-        resp = httpx.head(url, timeout=timeout, follow_redirects=True)
-        if 200 <= resp.status_code < 300:
-            return True
-        if resp.status_code == 403:
-            # Accept 403 if URL looks job-related
-            url_lower = url.lower()
-            if any(word in url_lower for word in ("job", "career", "position", "apply", "intern")):
-                return True
-        if resp.status_code == 404:
-            return False
-        
-        # Some servers don't support HEAD, try GET
-        resp = httpx.get(url, timeout=timeout, follow_redirects=True)
-        if 200 <= resp.status_code < 300:
-            return True
-        if resp.status_code == 403:
-            url_lower = url.lower()
-            if any(word in url_lower for word in ("job", "career", "position", "apply", "intern")):
-                return True
-        
-        return False
-    except Exception as exc:
-        log.debug("probe_url failed for %s: %s", url, exc)
-        return False
+    # Delegate to shared probe helper (unified with verify-links)
+    from jobradar.link_probe import probe_url_for_notify
+    
+    return probe_url_for_notify(url, timeout=timeout)
 
 
 def job_notify_block_reason(job: JobRecord) -> str | None:

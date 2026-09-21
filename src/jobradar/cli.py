@@ -45,6 +45,13 @@ def cmd_health(_: argparse.Namespace) -> int:
     print("notifiers: " + " + ".join(channels))
     from jobradar import gmail as gmail_mod
     from jobradar import notion as notion_mod
+    from jobradar.notify import (
+        alerts_enabled,
+        max_alerts_per_scan,
+        require_posted_at,
+        NOTIFY_WINDOW_DAYS,
+    )
+    from jobradar.link_probe import is_placeholder_url
 
     print("notion: configured" if notion_mod.configured() else "notion: skipped until keys set")
     print("gmail: configured" if gmail_mod.configured() else "gmail: skipped until secrets/gmail-client.json")
@@ -53,6 +60,16 @@ def cmd_health(_: argparse.Namespace) -> int:
         for k in ("GROK_BOT_WEBHOOK_JOB_ANALYST", "GROK_BOT_WEBHOOK_RESUME_MAPPER")
     )
     print("grok webhooks: configured" if grok_on else "grok webhooks: skipped until keys set")
+    print(f"director: {'configured' if ping_configured() else 'skipped until keys set'}")
+    
+    # Runtime gates (overnight #17)
+    print(f"\nRuntime gates:")
+    print(f"  notify window: {os.environ.get('JOBRADAR_NOTIFY_WINDOW_DAYS', NOTIFY_WINDOW_DAYS)} days")
+    print(f"  link probe: {'enabled' if os.environ.get('JOBRADAR_LINK_PROBE', '1').strip() != '0' else 'disabled'}")
+    print(f"  alerts: {'enabled' if alerts_enabled() else 'paused'}")
+    print(f"  require posted_at: {'yes' if require_posted_at() else 'no'}")
+    max_alerts = max_alerts_per_scan()
+    print(f"  max alerts/scan: {max_alerts if max_alerts > 0 else 'unlimited'}")
     return 0
 
 
