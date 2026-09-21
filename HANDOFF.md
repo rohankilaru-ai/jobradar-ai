@@ -4,7 +4,37 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
+<<<<<<< HEAD
 ## Latest: Overnight #22 — Default Unlimited Alert Cap (PR #40) — SHIPPED
+=======
+## Latest: Overnight #25 — Per-Source Scout Summary (DRAFT PR)
+
+**Branch:** `cursor/overnight-25-per-source-summary-5296` → draft PR pending
+    10|
+**Problem:** After overnight #22–#24 (alert-cap default + speedyapply SWE INTERN_INTL + AI College sources), main already soft-fails per source in scout.py but operators cannot see which sources failed or returned 304 in a normal `scan --once` / health path. Scan observability gaps made overnight/cloud-scan failures invisible without reading logs.
+
+**Fixed / shipped:**
+- **Per-source breakdown in scan output**: After `scout_all`, CLI now shows compact per-source summary with name, job count (or 0), and status: `ok` / `not_modified` (304) / `error` (with error detail)
+- **Aggregate counts**: Added `sources_ok`, `sources_not_modified`, `sources_failed` to `PipelineStats` and `RefreshStats`
+- **Soft-fail preserved**: One bad source never aborts the rest (already true — kept working and added regression test)
+- **Implementation**:
+  - `pipeline.py`: New `SourceSummary` dataclass tracks per-source status/jobs/error
+    20|  - `PipelineStats` and `RefreshStats`: Added `sources: list[SourceSummary]` and aggregate counts
+  - `run_scan()` and `refresh_jobs()`: Populate source summaries for each result
+  - `cli.py`: Display per-source breakdown in `cmd_scan()` and `cmd_refresh_jobs()`
+- **Tests**: 8 new focused tests in `tests/test_per_source_summary.py` covering mixed ok/304/error sources, soft-fail preservation, and aggregate counts
+- All 522 tests passing ✅
+
+**Impact:**
+- Operators can immediately see which sources failed, returned 304, or succeeded in scan output
+- No need to grep logs to diagnose overnight scan issues
+    30|- Aggregate counts provide quick health check (e.g., "4 ok, 2 not_modified, 1 failed")
+- Soft-fail behavior proven with regression test (one bad source doesn't stop others)
+
+**Status:** Draft PR ready for review. All tests green. HANDOFF updated.
+
+## Latest prior: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
+>>>>>>> 95ef471 (Overnight #25: per-source scout summary in scan output)
 
 **Branch:** `cursor/overnight-22-unlimited-alert-cap-dacc` → squash-merged to main (c6b3761)
 

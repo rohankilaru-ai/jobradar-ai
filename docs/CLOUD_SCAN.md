@@ -36,6 +36,7 @@ Public repos get standard Actions minutes **free**. 5‑minute cron is allowed (
 1. Actions → **cloud-scan** → **Run workflow** → set `test_discord` = **true** → Run.
 2. Confirm the run is green and Discord gets a short test message in each configured tier channel.
 3. Check the run log for `scan done … alerted=N`. `alerted=0` with `new=0` means **no new dated jobs** — not a broken Discord path.
+   - Per-source breakdown shows which sources succeeded (`ok`), returned `not_modified` (304), or failed with error details.
 4. Confirm scheduled runs appear with `event: schedule` (not only `push`). After changing the cron, wait ~15–20 minutes for the next tick.
 
 ```bash

@@ -112,6 +112,13 @@ scan done fetched=X kept=Y new=N notified=0 alerted=0
 **Subsequent runs**:
 ```
 scan done fetched=X kept=Y new=Z notified=Z alerted=0
+sources: ok=4 not_modified=2 failed=0
+  aprameyak-2027: 15 jobs
+  dreamwork-2027: not_modified (304)
+  applyguy-2027: 8 jobs
+  simplify-summer-2027: 23 jobs
+  simplify-offseason-2027: not_modified (304)
+  vansh-summer-2027: 12 jobs
 ```
 
 Where:
@@ -120,6 +127,7 @@ Where:
 - `new` = listings not seen before
 - `notified` = new listings written to JSONL
 - `alerted` = new listings sent to Discord/ntfy/Telegram (0 when JOBRADAR_ALERTS_ENABLED=0)
+- `sources` = per-source breakdown showing which sources succeeded (ok), returned 304 (not_modified), or failed (error)
 
 ### 6. Live Scan (with notifications)
 
