@@ -34,7 +34,7 @@ Markdown tables (`raw.githubusercontent.com`, ETag cache):
 - `SimplifyJobs/Summer2027-Internships` (`dev`) — `README.md`, `README-Off-Season.md` (skip Inactive)
 - `SimplifyJobs/New-Grad-Positions` (`dev`)
 - `vanshb03/Summer2027-Internships` (`dev`) — handle `↳` inherit company
-- `speedyapply/2027-SWE-College-Jobs` (`main`) — later `INTERN_INTL.md` and AI sibling repo
+- `speedyapply/2027-SWE-College-Jobs` (`main`) — `README.md`, `INTERN_INTL.md`
 
 **Do not scrape** `pittcsc/Summer2027-Internships` (stale Simplify fork).
 

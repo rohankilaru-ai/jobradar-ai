@@ -6,7 +6,7 @@
 
 ## Latest: Overnight #22 — Default Unlimited Alert Cap (PR #40) — SHIPPED
 
-**Branch:** `cursor/overnight-22-unlimited-alert-cap-dacc` → draft PR #40 open
+**Branch:** `cursor/overnight-22-unlimited-alert-cap-dacc` → squash-merged to main (c6b3761)
 
 **Problem:** With `JOBRADAR_MAX_ALERTS_PER_SCAN` defaulting to 15, alert #16+ still landed in SQLite but never hit Discord — easy to think listings were "lost." Standing product priority: notification speed; false positives OK; missed jobs not OK.
 
@@ -20,13 +20,33 @@
 - **Probe/pause defer:** Preserved overnight #21 `probe_deferred` and `alerts_paused` defer semantics
 - **Tests:** Updated 3 tests to expect 0 as default; all 514 tests pass ✅
 - **Documentation:** Updated `CLOUD_SCAN.md` and `LIVE_SCAN_VALIDATION.md` to reflect unlimited-by-default with optional cap
-- **PR:** Draft PR #40 created: https://github.com/rohankilaru-ai/jobradar-ai/pull/40
 
 **Impact:**
 - No more artificial per-scan alert ceiling by default — all qualifying jobs alert
 - Users won't miss alert #16+ due to default cap
 - Optional cap still available via env var for spam control if needed
 - Deferred jobs (cap, pause, probe) can still retry on later scans
+
+## Latest prior: Overnight #23 — Add speedyapply INTERN_INTL source (PR #41)
+
+**Branch:** `cursor/overnight-23-speedyapply-intl-9967`
+
+**Goal:** Add the PROJECT_SPEC-planned speedyapply international internship source that was missing.
+
+**Changes:**
+- Added `speedyapply-swe-intl-2027` source pointing to `INTERN_INTL.md` (markdown parser)
+- URL: `https://raw.githubusercontent.com/speedyapply/2027-SWE-College-Jobs/main/INTERN_INTL.md`
+- Uses same markdown parser as vansh/speedyapply README (handles pipe tables with ↳ inheritance)
+- Tests: 3 new tests in `test_sources_policy.py`:
+  - `test_speedyapply_intl_source_present`: Verifies INTERN_INTL source is in catalog
+  - `test_newgrad_sources_disabled`: Confirms NEW_GRAD_INTL/USA sources remain disabled
+  - Updated `test_sources_are_internship_focused` to include INTERN_INTL in allowed patterns
+- Pittcsc ban tests intact (still excluded)
+- Updated PROJECT_SPEC.md Sources section (removed "later" notation)
+- New-grad sources (NEW_GRAD_INTL.md, NEW_GRAD_USA.md) remain disabled (Rohan targets internships only)
+
+**Status:** Ready to merge (rebased onto PR #40).
+
 
 ## Latest prior: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
 
