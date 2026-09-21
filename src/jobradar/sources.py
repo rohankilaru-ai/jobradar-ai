@@ -54,4 +54,9 @@ SOURCES: list[Source] = [
         url="https://raw.githubusercontent.com/speedyapply/2027-SWE-College-Jobs/main/README.md",
         kind="markdown",
     ),
+    Source(
+        name="speedyapply-swe-intl-2027",
+        url="https://raw.githubusercontent.com/speedyapply/2027-SWE-College-Jobs/main/INTERN_INTL.md",
+        kind="markdown",
+    ),
 ]

@@ -45,3 +45,21 @@ def test_markdown_table_inherit_and_closed():
     research = next(j for j in jobs if "Research" in j.title)
     assert research.is_closed is True
     assert research.url.startswith("https://openai.com/careers/research")
+
+
+def test_speedyapply_intl_format():
+    """Smoke test: verify markdown parser handles speedyapply INTERN_INTL format."""
+    # Minimal INTERN_INTL-like markdown table
+    sample = """
+| Company | Role | Location | Application |
+| ------- | ---- | -------- | ----------- |
+| Stripe | Software Engineering Intern | London, UK | https://stripe.com/jobs/123 |
+| Google | ML Intern | Zurich, Switzerland | https://google.com/careers/456 |
+"""
+    jobs = parse_markdown_table(sample, source="speedyapply-swe-intl-2027")
+    assert len(jobs) == 2
+    assert jobs[0].company == "Stripe"
+    assert jobs[0].location == "London, UK"
+    assert "stripe.com" in jobs[0].url
+    assert jobs[1].company == "Google"
+    assert "google.com" in jobs[1].url

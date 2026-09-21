@@ -42,7 +42,7 @@ def test_sources_are_internship_focused():
     - ApplyGuy/2027-Internships
     - SimplifyJobs/Summer2027-Internships
     - vanshb03/Summer2027-Internships
-    - speedyapply/2027-SWE-College-Jobs
+    - speedyapply/2027-SWE-College-Jobs (README.md and INTERN_INTL.md)
     
     Banned:
     - pittcsc/Summer2027-Internships
@@ -60,3 +60,40 @@ def test_sources_are_internship_focused():
         assert is_internship_focused, (
             f"Source does not appear internship-focused: {source.url}"
         )
+
+
+def test_speedyapply_intl_source_present():
+    """
+    Verify speedyapply INTERN_INTL.md source is present.
+    
+    PROJECT_SPEC planned this source — it must be in the catalog.
+    """
+    intl_sources = [
+        s for s in SOURCES 
+        if "speedyapply" in s.url.lower() and "INTERN_INTL.md" in s.url
+    ]
+    
+    assert len(intl_sources) == 1, (
+        f"Expected exactly 1 speedyapply INTERN_INTL source, found {len(intl_sources)}: {[s.url for s in intl_sources]}"
+    )
+    
+    intl_source = intl_sources[0]
+    assert intl_source.kind == "markdown", (
+        f"speedyapply INTERN_INTL source should use markdown parser, got: {intl_source.kind}"
+    )
+
+
+def test_newgrad_sources_disabled():
+    """
+    Verify new-grad sources are still disabled (Rohan is internships-only).
+    
+    NEW_GRAD_INTL.md and NEW_GRAD_USA.md should NOT be in SOURCES.
+    """
+    newgrad_sources = [
+        s for s in SOURCES 
+        if "NEW_GRAD" in s.url or "new-grad" in s.name.lower()
+    ]
+    
+    assert len(newgrad_sources) == 0, (
+        f"New-grad sources should be disabled but found: {[s.url for s in newgrad_sources]}"
+    )
