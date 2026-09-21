@@ -43,6 +43,7 @@ def test_sources_are_internship_focused():
     - SimplifyJobs/Summer2027-Internships
     - vanshb03/Summer2027-Internships
     - speedyapply/2027-SWE-College-Jobs (README.md and INTERN_INTL.md)
+    - speedyapply/2027-AI-College-Jobs (README.md and INTERN_INTL.md)
     
     Banned:
     - pittcsc/Summer2027-Internships
@@ -64,23 +65,23 @@ def test_sources_are_internship_focused():
 
 def test_speedyapply_intl_source_present():
     """
-    Verify speedyapply INTERN_INTL.md source is present.
+    Verify speedyapply INTERN_INTL.md sources are present.
     
-    PROJECT_SPEC planned this source — it must be in the catalog.
+    PROJECT_SPEC planned these sources — they must be in the catalog.
     """
     intl_sources = [
         s for s in SOURCES 
         if "speedyapply" in s.url.lower() and "INTERN_INTL.md" in s.url
     ]
     
-    assert len(intl_sources) == 1, (
-        f"Expected exactly 1 speedyapply INTERN_INTL source, found {len(intl_sources)}: {[s.url for s in intl_sources]}"
+    assert len(intl_sources) == 2, (
+        f"Expected exactly 2 speedyapply INTERN_INTL sources (SWE and AI), found {len(intl_sources)}: {[s.url for s in intl_sources]}"
     )
     
-    intl_source = intl_sources[0]
-    assert intl_source.kind == "markdown", (
-        f"speedyapply INTERN_INTL source should use markdown parser, got: {intl_source.kind}"
-    )
+    for intl_source in intl_sources:
+        assert intl_source.kind == "markdown", (
+            f"speedyapply INTERN_INTL source should use markdown parser, got: {intl_source.kind}"
+        )
 
 
 def test_newgrad_sources_disabled():
@@ -96,4 +97,46 @@ def test_newgrad_sources_disabled():
     
     assert len(newgrad_sources) == 0, (
         f"New-grad sources should be disabled but found: {[s.url for s in newgrad_sources]}"
+    )
+
+
+def test_speedyapply_ai_sources_enabled():
+    """
+    Verify speedyapply AI College Jobs internship sources are enabled.
+    
+    Overnight #24: Add AI sibling repo internship sources (README.md and INTERN_INTL.md).
+    """
+    ai_sources = [s for s in SOURCES if "2027-AI-College-Jobs" in s.url]
+    
+    assert len(ai_sources) == 2, (
+        f"Expected 2 AI College Jobs internship sources, found {len(ai_sources)}"
+    )
+    
+    # Check for README.md (US internships)
+    ai_readme = [s for s in ai_sources if s.url.endswith("README.md")]
+    assert len(ai_readme) == 1, "Expected speedyapply-ai-2027 (README.md) to be enabled"
+    assert ai_readme[0].name == "speedyapply-ai-2027"
+    assert ai_readme[0].kind == "markdown"
+    
+    # Check for INTERN_INTL.md
+    ai_intl = [s for s in ai_sources if "INTERN_INTL.md" in s.url]
+    assert len(ai_intl) == 1, "Expected speedyapply-ai-intl-2027 (INTERN_INTL.md) to be enabled"
+    assert ai_intl[0].name == "speedyapply-ai-intl-2027"
+    assert ai_intl[0].kind == "markdown"
+
+
+def test_speedyapply_ai_newgrad_banned():
+    """
+    Verify speedyapply AI College Jobs new-grad sources are NOT enabled.
+    
+    Policy: Rohan targets internships only. NEW_GRAD_USA.md and NEW_GRAD_INTL.md
+    must NOT be in SOURCES.
+    """
+    ai_newgrad = [
+        s for s in SOURCES
+        if "2027-AI-College-Jobs" in s.url and "NEW_GRAD" in s.url
+    ]
+    
+    assert len(ai_newgrad) == 0, (
+        f"POLICY VIOLATION: AI new-grad sources are banned but found: {[s.url for s in ai_newgrad]}"
     )
