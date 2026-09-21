@@ -633,8 +633,17 @@ class Notifier:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.db = db
 
-    def notify(self, job: JobRecord, *, silent: bool = False) -> bool:
-        """Notify about a job. If silent=True, only write JSONL (no Discord/ntfy/Telegram)."""
+    def notify(self, job: JobRecord, *, silent: bool = False, record_as_notified: bool = True) -> bool:
+        """Notify about a job.
+        
+        Args:
+            job: Job to notify about
+            silent: If True, only write JSONL (no Discord/ntfy/Telegram)
+            record_as_notified: If False, don't mark as notified in DB (allows retry later)
+        
+        Returns:
+            True if notification was written, False if already notified or blocked
+        """
         if self.db and self.db.was_notified(job.canonical_key):
             return False
 
@@ -658,7 +667,9 @@ class Notifier:
         }
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
-        if self.db:
+        
+        # Only record as notified if requested (skip for pause/cap-deferred jobs)
+        if self.db and record_as_notified:
             self.db.record_notification(job.canonical_key, "jsonl", payload, record["ts"])
 
         if silent:

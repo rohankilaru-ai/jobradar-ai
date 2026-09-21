@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime
 import re
 from html.parser import HTMLParser
 from typing import Any, Iterable
+import logging
 
-from jobradar.models import JobRecord
+from jobradar.models import JobRecord, is_bad_url
 
 log = logging.getLogger("jobradar.parsers")
 
@@ -86,13 +86,15 @@ def parse_aprameyak_json(raw: str | bytes, source: str = "aprameyak-2027") -> li
         title = str(item.get("role") or item.get("title") or "").strip()
         if not company or not title:
             continue
+        url = str(item.get("url") or "").strip()
+        url = _clean_url(url)  # Clean and validate
         posted = str(item.get("date_added") or item.get("posted_at") or item.get("date") or "").strip()
         out.append(
             JobRecord(
                 company=company,
                 title=title,
                 location=str(item.get("location") or "").strip(),
-                url=str(item.get("url") or "").strip(),
+                url=url,
                 sources=[source],
                 snippet=f"{title} @ {company}",
                 season=str(item.get("season") or item.get("type") or "").strip(),
@@ -131,13 +133,15 @@ def parse_dreamwork_json(raw: str | bytes, source: str = "dreamwork-2027") -> li
         title = str(item.get("title") or "").strip()
         if not company or not title:
             continue
+        url = str(item.get("url") or "").strip()
+        url = _clean_url(url)  # Clean and validate
         posted = str(item.get("date_added") or item.get("posted_at") or item.get("date") or item.get("created_at") or "").strip()
         out.append(
             JobRecord(
                 company=company,
                 title=title,
                 location=str(item.get("location") or "").strip(),
-                url=str(item.get("url") or "").strip(),
+                url=url,
                 sources=[source],
                 snippet=f"{title} @ {company}",
                 posted_at=posted,
@@ -176,6 +180,7 @@ def parse_applyguy_json(raw: str | bytes, source: str = "applyguy-2027") -> list
         if not company or not title:
             continue
         url = str(item.get("listingUrl") or item.get("url") or "").strip()
+        url = _clean_url(url)  # Clean and validate
         posted = str(item.get("date_added") or item.get("posted_at") or item.get("date") or item.get("createdAt") or "").strip()
         out.append(
             JobRecord(
@@ -248,23 +253,38 @@ def _first_apply_url(cell_html: str) -> str:
 
 
 def _clean_url(url: str) -> str:
-    """Clean URL: strip trailing quotes and junk."""
+    """Clean URL: strip trailing/leading quotes and junk, validate against bad URLs."""
     url = (url or "").strip()
+    # Strip trailing junk
     while url and url[-1] in ('"', "'", ">", ")", "`", "\\", ",", ";", "]"):
         url = url[:-1]
-    return url.strip()
+    # Strip leading junk too
+    while url and url[0] in ('"', "'", "<", "{", "["):
+        url = url[1:]
+    url = url.strip()
+    # Early validation: return empty string if bad URL
+    if url and is_bad_url(url):
+        log.debug("Rejected bad URL at parse time: %s", url[:100])
+        return ""
+    return url
 
 
 def parse_simplify_html(raw: str, source: str = "simplify-summer-2027") -> list[JobRecord]:
     """Parse Simplify/PittCSC HTML tables. Skip Inactive. Inherit company on ↳ rows. Prevent column mis-alignment."""
     parser = _SimplifyTableParser()
-    parser.feed(raw)
+    try:
+        parser.feed(raw)
+    except Exception as e:
+        log.warning("HTML parser error, attempting to continue: %s", e)
+    
     out: list[JobRecord] = []
     last_company = ""
     last_url = ""  # Track last URL for inherit rows
     
-    for cells in parser.rows:
+    for row_idx, cells in enumerate(parser.rows):
+        # Guard: Need at least company, title, location columns (cell 0, 1, 2)
         if len(cells) < 3:
+            log.debug("Skipping row %d: insufficient columns (%d)", row_idx, len(cells))
             continue
         
         # Extract and clean company (cell 0) - strip all HTML including links
@@ -276,33 +296,43 @@ def parse_simplify_html(raw: str, source: str = "simplify-summer-2027") -> list[
         # This prevents company <a href> from leaking into URL field
         app_html = cells[3] if len(cells) > 3 else ""
         url = _first_apply_url(app_html)
-        url = _clean_url(url)  # Clean trailing quotes
+        url = _clean_url(url)  # Clean and validate
         
         if not title:
+            log.debug("Skipping row %d: empty title", row_idx)
             continue
         
         # Skip header rows
         if company_raw.lower() == "company" and title.lower() == "role":
             continue
         
-        # Skip inactive postings
-        if "inactive" in location.lower() or "inactive" in title.lower():
+        # Skip inactive postings (check both location and title)
+        if "inactive" in location.lower() or "inactive" in title.lower() or "inactive" in company_raw.lower():
+            log.debug("Skipping inactive row: %s | %s", company_raw, title)
             continue
         
         # Handle ↳ inherit rows: inherit both company AND url from previous row
-        if company_raw.startswith("↳") or company_raw == "↳":
+        # Guard: if we have no last_company, skip the inherit row
+        # Only treat explicit ↳ as inherit marker, not empty cells
+        is_inherit = company_raw.startswith("↳") or company_raw == "↳"
+        if is_inherit:
+            if not last_company:
+                log.debug("Skipping row %d: inherit marker but no previous company", row_idx)
+                continue
             company = last_company
             # If inherit row has no URL in its app cell, use last URL
             if not url and last_url:
                 url = last_url
         else:
             company = company_raw
-            last_company = company
+            if company:
+                last_company = company
             # Update last_url only for non-inherit rows
             if url:
                 last_url = url
         
         if not company:
+            log.debug("Skipping row %d: empty company after inheritance", row_idx)
             continue
         
         is_closed = "🔒" in title or "closed" in title.lower()
@@ -348,8 +378,11 @@ def parse_markdown_table(raw: str, source: str = "markdown") -> list[JobRecord]:
     text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else raw
     out: list[JobRecord] = []
     last_company = ""
+    last_url = ""  # Track last URL for inherit rows
     header_idx: dict[str, int] | None = None
+    line_num = 0
     for line in text.splitlines():
+        line_num += 1
         m = _PIPE_ROW.match(line)
         if not m:
             continue
@@ -372,28 +405,57 @@ def parse_markdown_table(raw: str, source: str = "markdown") -> list[JobRecord]:
                     header_idx["age"] = i
             continue
         if header_idx is None:
+            log.debug("Skipping line %d: no header found yet", line_num)
             continue
+        
+        # Extract fields with bounds checking
         ci = header_idx.get("company", 0)
         ti = header_idx.get("title", 1)
         li = header_idx.get("location", 2)
         ui = header_idx.get("url")
+        
         company_raw = _strip_md(cells[ci] if ci < len(cells) else "")
         title = _strip_md(cells[ti] if ti < len(cells) else "")
         location = _strip_md(cells[li] if li < len(cells) else "")
         url_cell = cells[ui] if ui is not None and ui < len(cells) else ""
+        
         if not title:
+            log.debug("Skipping line %d: empty title", line_num)
             continue
-        if company_raw.startswith("↳") or company_raw == "↳":
+        
+        # Handle ↳ inherit rows: inherit both company AND url from previous row
+        # Guard: if we have no last_company, skip the inherit row
+        # Only treat explicit ↳ as inherit marker, not empty cells
+        is_inherit = company_raw.startswith("↳") or company_raw == "↳"
+        if is_inherit:
+            if not last_company:
+                log.debug("Skipping line %d: inherit marker but no previous company", line_num)
+                continue
             company = last_company
         else:
             company = company_raw
-            last_company = company
+            if company:
+                last_company = company
+        
         if not company:
+            log.debug("Skipping line %d: empty company after inheritance", line_num)
             continue
+        
+        # Extract and clean URL
         url = ""
         found = _MD_URL.search(url_cell)
         if found:
             url = found.group(0).rstrip(").,")
+            url = _clean_url(url)  # Clean and validate
+        
+        # If inherit row and no URL found, use last URL
+        if not url and is_inherit and last_url:
+            url = last_url
+        
+        # Update last_url for non-inherit rows
+        if url and not is_inherit:
+            last_url = url
+        
         is_closed = "🔒" in title or "closed" in title.lower()
         ai = header_idx.get("age")
         age_cell = _strip_md(cells[ai]) if ai is not None and ai < len(cells) else ""

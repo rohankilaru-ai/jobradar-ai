@@ -4,7 +4,40 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #12 — Product-completion tests (PR #29)
+## Latest: Fix failing pytest on main (PR #39)
+
+**Problem:** Overnight PRs #27–#36 squash-merged to main resulted in ~9 pytest failures:
+1. Parser hardening tests (PR #28) landed but actual parser changes lost during conflict resolution
+2. Alert gates test expected old behavior where paused alerts permanently marked jobs as notified
+
+**Fixed / shipped:**
+- **Parser hardening restored (from PR #28 / commit d234dac):**
+  - Import `is_bad_url` and validate URLs at parse time
+  - Reject bad URLs (example.com, localhost, generic career pages) in `_clean_url()`
+  - Improve URL inheritance for ↳ rows in HTML/markdown parsers
+  - Skip orphan inherit markers (↳ with no previous company)
+  - Add try/except for HTML parser robustness
+  - All 31 parser hardening tests pass ✅
+
+- **Alert pause/cap defer (from PR #37):**
+  - Add `record_as_notified` parameter to `Notifier.notify()` (default `True`)
+  - Add `alerts_paused` and `cap_deferred` counters to `PipelineStats`
+  - When alerts paused: write JSONL but don't mark as notified → allows retry after re-enable
+  - When cap hit: defer overflow jobs without marking notified → later scans can alert them
+  - Quality blocks (bad URL, old posting) remain permanent
+  - Preserve priority-first ordering from overnight #19
+  - All 22 alert gates tests pass ✅
+
+**Impact:**
+- CI green, no more failure emails from GitHub Actions
+- Parser quality: bad URLs rejected at parse time
+- Safe pause: alerts can be paused without permanently silencing jobs
+- Cap overflow recovery: jobs past cap can alert on later scans
+- All 501 tests passing ✅
+
+**Status:** PR #38 (transient probe defer) can now be rebased cleanly onto main after #39 merges.
+
+## Latest prior: Overnight #12 — Product-completion tests (PR #29)
 
 **Problem:** After parser hardening (PRs #27, #28), needed comprehensive product-completion tests to validate the full scan → classify → store → notify pipeline with all quality gates.
 

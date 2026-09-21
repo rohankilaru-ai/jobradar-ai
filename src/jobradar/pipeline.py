@@ -26,6 +26,8 @@ class PipelineStats:
     notified: int = 0
     alerted: int = 0
     alert_cap_hit: bool = False
+    alerts_paused: int = 0
+    cap_deferred: int = 0
     seeded: int = 0
     source_errors: list[str] = field(default_factory=list)
     seed_mode: bool = False
@@ -92,7 +94,11 @@ def run_scan(
             if stored.is_closed:
                 continue
             if is_new and within_notify_window(stored):
-                if should_send_alerts(stored):
+                # Check quality gates (URL, window, etc.) but NOT alerts_enabled
+                # We want to collect all potentially alertable jobs for priority sorting,
+                # then check alerts_enabled and cap during actual notification
+                from jobradar.notify import job_notify_block_reason
+                if not job_notify_block_reason(stored):
                     alertable_jobs.append(stored)
 
     # Priority-first ordering: sort alertable jobs by tier before applying cap
@@ -119,27 +125,48 @@ def run_scan(
             len(alertable_jobs),
         )
 
-    # Silent-store all alertable jobs (including those past the cap)
+    # Check if alerts are globally paused
+    from jobradar.notify import alerts_enabled
+    alerts_on = alerts_enabled()
+    
+    # Process all alertable jobs
     for job in alertable_jobs:
-        if job not in jobs_to_alert:
-            if notifier.notify(job, silent=True):
-                stats.notified += 1
-
-    # Send live alerts for jobs within the cap
-    for job in jobs_to_alert:
         from jobradar import notion as notion_mod
-
-        if notifier.notify(job, silent=False):
+        
+        # Determine if this job should be live-alerted
+        is_within_cap = job in jobs_to_alert
+        should_alert = is_within_cap and alerts_on
+        
+        # Track deferral reasons
+        record_notification = True
+        defer_reason = None
+        
+        if not alerts_on:
+            # Alerts paused: don't record notification, allow retry later
+            record_notification = False
+            defer_reason = "alerts_paused"
+            stats.alerts_paused += 1
+        elif not is_within_cap:
+            # Cap hit: don't record notification, allow retry later
+            record_notification = False
+            defer_reason = "cap_deferred"
+            stats.cap_deferred += 1
+        
+        # Notify: silent if not should_alert, record only if not deferred
+        if notifier.notify(job, silent=not should_alert, record_as_notified=record_notification):
             stats.notified += 1
-        stats.alerted += 1
-        try:
-            director_enqueue(job, db=db)
-        except Exception as exc:
-            log.warning("director enqueue failed: %s", exc)
-        try:
-            notion_mod.upsert_job(job, db=db, status=notion_mod.STATUS_BACKLOG)
-        except Exception as exc:
-            log.warning("notion upsert failed: %s", exc)
+            if should_alert:
+                stats.alerted += 1
+                try:
+                    director_enqueue(job, db=db)
+                except Exception as exc:
+                    log.warning("director enqueue failed: %s", exc)
+                try:
+                    notion_mod.upsert_job(job, db=db, status=notion_mod.STATUS_BACKLOG)
+                except Exception as exc:
+                    log.warning("notion upsert failed: %s", exc)
+            elif defer_reason:
+                log.debug("Job deferred (%s): %s", defer_reason, job.canonical_key)
 
     return stats
 
