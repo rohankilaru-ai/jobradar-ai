@@ -143,5 +143,24 @@ def scout_all(db: Database, sources: list[Source] | None = None) -> list[ScoutRe
     results: list[ScoutResult] = []
     with httpx.Client(timeout=60.0, follow_redirects=True) as client:
         for src in sources:
-            results.append(fetch_source(src, db, client=client))
+            result = fetch_source(src, db, client=client)
+            results.append(result)
+            
+            # Record health metrics for observability
+            try:
+                status = "ok" if result.status and result.status < 400 and not result.error else "error"
+                if result.not_modified:
+                    status = "not_modified"
+                
+                db.record_scout_health(
+                    source_name=result.source,
+                    status=status,
+                    job_count=len(result.jobs),
+                    http_status=result.status,
+                    error_detail=result.error,
+                    was_cached=result.not_modified,
+                )
+            except Exception as exc:
+                log.warning("Failed to record scout health for %s: %s", result.source, exc)
+    
     return results
