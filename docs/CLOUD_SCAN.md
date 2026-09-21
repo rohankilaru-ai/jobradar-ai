@@ -28,6 +28,7 @@ Workflow: [`.github/workflows/cloud-scan.yml`](../.github/workflows/cloud-scan.y
 - Restores/saves `data/jobradar.db` via Actions cache so scans are incremental (not a fresh seed every time)
 - Sends Discord / ntfy / Telegram alerts when secrets are set
 - Optionally runs `gmail-sync` when Gmail OAuth JSON secrets are set
+- Scout fetch now retries once on transient HTTP failures (5xx, 429, timeout) to recover from flaky GitHub raw serves
 
 Public repos get standard Actions minutes **free**. 5‑minute cron is allowed (GitHub’s minimum). ~288 runs/day × ~1 min ≈ a few hundred minutes/month — free on public; fine even on private Free (2,000 min). Cron can still slip a few minutes under load.
 

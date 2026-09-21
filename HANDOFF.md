@@ -4,10 +4,6 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-<<<<<<< HEAD
-## Latest: Overnight #22 — Default Unlimited Alert Cap (PR #40) — SHIPPED
-=======
-## Latest: Overnight #25 — Per-Source Scout Summary (DRAFT PR)
 
 **Branch:** `cursor/overnight-25-per-source-summary-5296` → draft PR pending
     10|
@@ -34,7 +30,6 @@
 **Status:** Draft PR ready for review. All tests green. HANDOFF updated.
 
 ## Latest prior: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
->>>>>>> 95ef471 (Overnight #25: per-source scout summary in scan output)
 
 **Branch:** `cursor/overnight-22-unlimited-alert-cap-dacc` → squash-merged to main (c6b3761)
 
