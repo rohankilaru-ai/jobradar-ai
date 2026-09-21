@@ -33,47 +33,70 @@ EXCLUDE = (
     # Medical/healthcare roles
     "nursing", "nurse", "pharmacist", "pharmacy tech", "dental", "medical assistant", 
     "registered nurse", "physician", "clinical", "healthcare", "therapist", "physical therapy",
-    "occupational therapy", "medical scribe", "patient care",
+    "occupational therapy", "medical scribe", "patient care", "clinical research coordinator",
+    "medical records", "health services", "clinical operations",
     # Finance/accounting (non-technical)
     "tax intern", "tax analyst", "tax accountant", "tax preparer", "accounting intern", 
     "accountant", "bookkeeper", "accounts payable", "accounts receivable", "payroll",
     "audit intern", "auditor", "financial advisor", "wealth management", "personal banker",
     "investment banking analyst", "private equity analyst", "credit analyst",
-    # Legal
+    "treasury intern", "finance operations intern", "financial planning intern",
+    # Legal/compliance/governance
     "legal intern", "paralegal", "law clerk", "legal assistant", "compliance intern",
-    "legal operations",
+    "legal operations", "compliance analyst", "regulatory affairs", "risk management intern",
+    "governance intern", "policy analyst intern", "legal research",
     # HR/recruiting/admin
     "social work", "hr intern", "human resources", "recruiter intern", "recruiting coordinator",
     "administrative assistant", "office assistant", "receptionist", "office manager",
-    "executive assistant",
+    "executive assistant", "talent acquisition intern", "people operations intern",
+    "hr operations", "compensation intern", "benefits intern",
     # Sales/marketing/business development (non-technical)
     "marketing intern", "sales intern", "real estate", "business development intern",
     "account executive intern", "sales rep", "sales associate", "sales development",
     "account manager intern", "customer success intern", "partnership intern",
     "growth marketing intern", "brand marketing", "product marketing intern",
+    "inside sales", "sales operations intern", "revenue operations intern",
+    "demand generation intern", "field marketing", "event marketing",
+    "digital marketing intern", "content marketing intern", "email marketing",
+    "influencer marketing", "affiliate marketing", "channel marketing",
+    # Product management (non-technical, without engineering context)
+    "product management intern", "product manager intern", "associate product manager",
+    "product operations intern", "product strategy intern",
+    # Business/strategy/consulting (non-technical)
+    "business analyst intern", "business strategy intern", "strategy intern",
+    "management consulting intern", "strategy consulting intern", "business consultant intern",
+    "corporate strategy intern", "strategic planning intern",
     # Content/media (non-technical)
     "content writer", "copywriter", "journalist", "editorial intern", "editor",
     "communications intern", "public relations", "pr intern", "social media intern",
-    "media producer", "content creator",
+    "media producer", "content creator", "community manager", "social media manager",
+    "content strategist", "communications coordinator",
     # Operations/logistics/supply chain (non-technical)
     "warehouse", "logistics intern", "supply chain intern", "operations intern",
     "inventory", "driver", "business operations intern", "program coordinator",
-    "project coordinator intern", "operations coordinator",
-    # Service/hospitality
+    "project coordinator intern", "operations coordinator", "facilities intern",
+    "procurement intern", "vendor management", "supply chain analyst",
+    # Service/hospitality/customer support
     "customer service intern", "retail", "cashier", "server", "host", "barista",
-    "front desk", "concierge",
+    "front desk", "concierge", "customer support intern", "technical support intern",
+    "customer experience intern", "client services intern",
     # Education/tutoring
     "teacher", "tutor", "teaching assistant", "camp counselor", "instructor",
+    "curriculum intern", "education program",
     # Arts/design (non-technical)
     "graphic design intern", "photographer", "videographer", "artist", "illustrator",
-    "ux designer intern", "ui designer intern", "visual designer",
+    "ux designer intern", "ui designer intern", "visual designer", "motion graphics",
+    "3d artist", "animator intern", "creative intern",
     # Construction/trades/manual labor
     "construction", "electrician", "plumber", "mechanic", "maintenance", "technician intern",
-    "hvac", "welder", "carpenter",
-    # Insurance
-    "insurance intern", "claims adjuster", "underwriter intern",
-    # Consulting (non-technical management consulting)
-    "management consulting intern", "strategy consulting intern", "business consultant intern",
+    "hvac", "welder", "carpenter", "facilities technician",
+    # Insurance/financial services
+    "insurance intern", "claims adjuster", "underwriter intern", "actuary intern",
+    "investment analyst intern", "portfolio management intern",
+    # Event planning/coordination
+    "event planning intern", "event coordinator", "conference coordinator",
+    # Sustainability/ESG (non-technical)
+    "sustainability intern", "esg intern", "environmental intern",
 )
 
 # New-grad / full-time signals (exclude unless also clearly an intern role)

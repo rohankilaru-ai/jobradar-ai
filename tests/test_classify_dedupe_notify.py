@@ -382,8 +382,8 @@ def test_recall_first_unknown_roles():
     
     # Borderline roles (could be tech or non-tech)
     assert should_keep(JobRecord(company="Corp", title="Product Intern")) is True
-    assert should_keep(JobRecord(company="Tech", title="Strategy Intern")) is True
-    assert should_keep(JobRecord(company="Startup", title="Growth Intern")) is True
+    assert should_keep(JobRecord(company="Tech", title="Research Intern")) is True
+    assert should_keep(JobRecord(company="Startup", title="Technical Intern")) is True
 
 
 def test_intern_signals_override_newgrad():
@@ -394,6 +394,183 @@ def test_intern_signals_override_newgrad():
     
     # But PhD + intern = still drop
     assert should_keep(JobRecord(company="Lab", title="PhD Research Intern - Summer")) is False
+
+
+# --- Overnight #32: Additional exclude-list tuning tests ---
+
+
+def test_exclude_additional_healthcare_operations():
+    """Additional healthcare operations roles should be excluded."""
+    assert should_keep(JobRecord(company="Hospital", title="Clinical Research Coordinator Intern")) is False
+    assert should_keep(JobRecord(company="Medical Center", title="Medical Records Intern")) is False
+    assert should_keep(JobRecord(company="Healthcare Co", title="Health Services Intern")) is False
+    assert should_keep(JobRecord(company="Clinic", title="Clinical Operations Intern")) is False
+
+
+def test_exclude_additional_finance_operations():
+    """Additional finance operations roles should be excluded."""
+    assert should_keep(JobRecord(company="Finance Co", title="Treasury Intern")) is False
+    assert should_keep(JobRecord(company="Corp", title="Finance Operations Intern")) is False
+    assert should_keep(JobRecord(company="Bank", title="Financial Planning Intern")) is False
+    assert should_keep(JobRecord(company="Investment Co", title="Investment Analyst Intern")) is False
+    assert should_keep(JobRecord(company="Finance", title="Portfolio Management Intern")) is False
+    assert should_keep(JobRecord(company="Insurance", title="Actuary Intern")) is False
+
+
+def test_exclude_compliance_risk_governance():
+    """Compliance, risk, and governance roles should be excluded."""
+    assert should_keep(JobRecord(company="Bank", title="Compliance Analyst Intern")) is False
+    assert should_keep(JobRecord(company="Corp", title="Regulatory Affairs Intern")) is False
+    assert should_keep(JobRecord(company="Finance", title="Risk Management Intern")) is False
+    assert should_keep(JobRecord(company="Company", title="Governance Intern")) is False
+    assert should_keep(JobRecord(company="Legal", title="Policy Analyst Intern")) is False
+    assert should_keep(JobRecord(company="Compliance", title="Legal Research Intern")) is False
+
+
+def test_exclude_additional_hr_operations():
+    """Additional HR operations roles should be excluded."""
+    assert should_keep(JobRecord(company="Tech Co", title="Talent Acquisition Intern")) is False
+    assert should_keep(JobRecord(company="Corp", title="People Operations Intern")) is False
+    assert should_keep(JobRecord(company="HR Dept", title="HR Operations Intern")) is False
+    assert should_keep(JobRecord(company="Company", title="Compensation Intern")) is False
+    assert should_keep(JobRecord(company="Business", title="Benefits Intern")) is False
+
+
+def test_exclude_additional_sales_revenue_ops():
+    """Additional sales and revenue operations roles should be excluded."""
+    assert should_keep(JobRecord(company="Sales Co", title="Inside Sales Intern")) is False
+    assert should_keep(JobRecord(company="SaaS Co", title="Sales Operations Intern")) is False
+    assert should_keep(JobRecord(company="Tech Co", title="Revenue Operations Intern")) is False
+    assert should_keep(JobRecord(company="Marketing", title="Demand Generation Intern")) is False
+    assert should_keep(JobRecord(company="Sales", title="Field Marketing Intern")) is False
+    assert should_keep(JobRecord(company="Events", title="Event Marketing Intern")) is False
+
+
+def test_exclude_additional_marketing_digital():
+    """Additional digital and content marketing roles should be excluded."""
+    assert should_keep(JobRecord(company="Marketing Co", title="Digital Marketing Intern")) is False
+    assert should_keep(JobRecord(company="Content Co", title="Content Marketing Intern")) is False
+    assert should_keep(JobRecord(company="Email Co", title="Email Marketing Intern")) is False
+    assert should_keep(JobRecord(company="Influencer", title="Influencer Marketing Intern")) is False
+    assert should_keep(JobRecord(company="Affiliate", title="Affiliate Marketing Intern")) is False
+    assert should_keep(JobRecord(company="Channel", title="Channel Marketing Intern")) is False
+
+
+def test_exclude_product_management_nontechnical():
+    """Product management roles without engineering context should be excluded."""
+    assert should_keep(JobRecord(company="Tech Co", title="Product Management Intern")) is False
+    assert should_keep(JobRecord(company="Startup", title="Product Manager Intern")) is False
+    assert should_keep(JobRecord(company="Company", title="Associate Product Manager Intern")) is False
+    assert should_keep(JobRecord(company="Product Co", title="Product Operations Intern")) is False
+    assert should_keep(JobRecord(company="Strategy", title="Product Strategy Intern")) is False
+
+
+def test_exclude_business_strategy_consulting():
+    """Business strategy and non-technical consulting roles should be excluded."""
+    assert should_keep(JobRecord(company="Consulting", title="Business Analyst Intern")) is False
+    assert should_keep(JobRecord(company="Strategy Co", title="Business Strategy Intern")) is False
+    assert should_keep(JobRecord(company="Corp", title="Strategy Intern")) is False
+    assert should_keep(JobRecord(company="Company", title="Corporate Strategy Intern")) is False
+    assert should_keep(JobRecord(company="Planning", title="Strategic Planning Intern")) is False
+
+
+def test_exclude_additional_content_community():
+    """Additional content and community roles should be excluded."""
+    assert should_keep(JobRecord(company="Social Co", title="Community Manager Intern")) is False
+    assert should_keep(JobRecord(company="Media", title="Social Media Manager Intern")) is False
+    assert should_keep(JobRecord(company="Content", title="Content Strategist Intern")) is False
+    assert should_keep(JobRecord(company="Comms", title="Communications Coordinator Intern")) is False
+
+
+def test_exclude_additional_operations_facilities():
+    """Additional operations and facilities roles should be excluded."""
+    assert should_keep(JobRecord(company="Operations", title="Facilities Intern")) is False
+    assert should_keep(JobRecord(company="Procurement", title="Procurement Intern")) is False
+    assert should_keep(JobRecord(company="Vendor Co", title="Vendor Management Intern")) is False
+    assert should_keep(JobRecord(company="Supply Chain", title="Supply Chain Analyst Intern")) is False
+
+
+def test_exclude_customer_support_technical():
+    """Customer support and technical support roles should be excluded."""
+    assert should_keep(JobRecord(company="Support Co", title="Customer Support Intern")) is False
+    assert should_keep(JobRecord(company="Tech Support", title="Technical Support Intern")) is False
+    assert should_keep(JobRecord(company="Customer Co", title="Customer Experience Intern")) is False
+    assert should_keep(JobRecord(company="Services", title="Client Services Intern")) is False
+
+
+def test_exclude_education_curriculum():
+    """Education and curriculum roles should be excluded."""
+    assert should_keep(JobRecord(company="EdTech", title="Curriculum Intern")) is False
+    assert should_keep(JobRecord(company="Education", title="Education Program Intern")) is False
+
+
+def test_exclude_additional_design_creative():
+    """Additional non-technical design and creative roles should be excluded."""
+    assert should_keep(JobRecord(company="Design", title="Motion Graphics Intern")) is False
+    assert should_keep(JobRecord(company="3D Studio", title="3D Artist Intern")) is False
+    assert should_keep(JobRecord(company="Animation", title="Animator Intern")) is False
+    assert should_keep(JobRecord(company="Creative", title="Creative Intern")) is False
+
+
+def test_exclude_additional_facilities_trades():
+    """Additional facilities and trades roles should be excluded."""
+    assert should_keep(JobRecord(company="Facilities", title="Facilities Technician Intern")) is False
+
+
+def test_exclude_event_planning():
+    """Event planning and coordination roles should be excluded."""
+    assert should_keep(JobRecord(company="Events", title="Event Planning Intern")) is False
+    assert should_keep(JobRecord(company="Conference", title="Event Coordinator Intern")) is False
+    assert should_keep(JobRecord(company="Events Co", title="Conference Coordinator Intern")) is False
+
+
+def test_exclude_sustainability_nontechnical():
+    """Non-technical sustainability roles should be excluded."""
+    assert should_keep(JobRecord(company="Green Co", title="Sustainability Intern")) is False
+    assert should_keep(JobRecord(company="ESG Corp", title="ESG Intern")) is False
+    assert should_keep(JobRecord(company="Environmental", title="Environmental Intern")) is False
+
+
+def test_strong_override_product_engineer():
+    """Product Engineer roles should be kept (strong technical signal)."""
+    assert should_keep(JobRecord(company="Tech Co", title="Product Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Startup", title="Product Infrastructure Engineer")) is True
+
+
+def test_strong_override_business_intelligence_engineer():
+    """Business Intelligence Engineer should be kept (strong technical signal)."""
+    assert should_keep(JobRecord(company="Data Co", title="Business Intelligence Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Analytics", title="BI Engineer Intern")) is True
+
+
+def test_strong_override_marketing_data_science():
+    """Marketing Data Science roles should be kept (strong technical signal)."""
+    assert should_keep(JobRecord(company="MarketingAI", title="Marketing Data Scientist Intern")) is True
+    assert should_keep(JobRecord(company="AdTech", title="Marketing Data Engineer")) is True
+
+
+def test_strong_override_operations_software_engineer():
+    """Operations Software Engineer should be kept (strong technical signal)."""
+    assert should_keep(JobRecord(company="OpsTech", title="Operations Software Engineer Intern")) is True
+    assert should_keep(JobRecord(company="RevOps", title="Revenue Operations Platform Engineer")) is True
+
+
+def test_strong_override_sustainability_data_engineer():
+    """Sustainability Data Engineer should be kept (strong technical signal)."""
+    assert should_keep(JobRecord(company="GreenTech", title="Sustainability Data Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Climate", title="Environmental ML Engineer")) is True
+
+
+def test_strong_override_compliance_software_engineer():
+    """Compliance Software Engineer should be kept (strong technical signal)."""
+    assert should_keep(JobRecord(company="RegTech", title="Compliance Software Engineer Intern")) is True
+    assert should_keep(JobRecord(company="FinTech", title="Risk ML Engineer")) is True
+
+
+def test_strong_override_customer_data_engineer():
+    """Customer Data Engineer should be kept (strong technical signal)."""
+    assert should_keep(JobRecord(company="CustomerTech", title="Customer Data Engineer Intern")) is True
+    assert should_keep(JobRecord(company="CX Tech", title="Customer Analytics Engineer")) is True
 
 
 # --- Original tests preserved below ---
@@ -533,7 +710,7 @@ def test_pipeline_no_duplicate_alert_on_tracking_param_change(tmp_path, monkeypa
     # Morning scan: Job with utm_source=aprameyak
     morning_job = JobRecord(
         company="Hudl",
-        title="Product Management Intern",
+        title="Software Engineer Intern",
         location="Remote",
         url="https://hudl.com/careers/job/123?utm_source=aprameyak",
         sources=["simplify"],
@@ -555,7 +732,7 @@ def test_pipeline_no_duplicate_alert_on_tracking_param_change(tmp_path, monkeypa
     # Evening scan: Same job but with utm_source=Simplify&ref=Simplify
     evening_job = JobRecord(
         company="Hudl",
-        title="Product Management Intern",
+        title="Software Engineer Intern",
         location="Remote",
         url="https://hudl.com/careers/job/123?utm_source=Simplify&ref=Simplify",
         sources=["simplify"],
