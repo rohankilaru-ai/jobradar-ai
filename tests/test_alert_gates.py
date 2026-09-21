@@ -39,10 +39,10 @@ def test_alerts_enabled_enable(monkeypatch):
 
 
 def test_max_alerts_per_scan_default(monkeypatch):
-    """JOBRADAR_MAX_ALERTS_PER_SCAN should default to 15."""
+    """JOBRADAR_MAX_ALERTS_PER_SCAN should default to 0 (unlimited)."""
     # Remove conftest override to test actual default
     monkeypatch.delenv("JOBRADAR_MAX_ALERTS_PER_SCAN", raising=False)
-    assert max_alerts_per_scan() == 15
+    assert max_alerts_per_scan() == 0
 
 
 def test_max_alerts_per_scan_custom(monkeypatch):
@@ -55,9 +55,9 @@ def test_max_alerts_per_scan_custom(monkeypatch):
 
 
 def test_max_alerts_per_scan_invalid(monkeypatch):
-    """JOBRADAR_MAX_ALERTS_PER_SCAN should fallback to 15 on invalid input."""
+    """JOBRADAR_MAX_ALERTS_PER_SCAN should fallback to 0 on invalid input."""
     monkeypatch.setenv("JOBRADAR_MAX_ALERTS_PER_SCAN", "invalid")
-    assert max_alerts_per_scan() == 15
+    assert max_alerts_per_scan() == 0
     
     monkeypatch.setenv("JOBRADAR_MAX_ALERTS_PER_SCAN", "-5")
     assert max_alerts_per_scan() == 0  # max(0, -5) = 0

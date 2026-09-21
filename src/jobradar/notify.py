@@ -68,11 +68,11 @@ def require_posted_at() -> bool:
 
 
 def max_alerts_per_scan() -> int:
-    """Cap live alerts per scan run. 0 = unlimited."""
+    """Optional cap on live alerts per scan run. 0 = unlimited (default)."""
     try:
-        return max(0, int((os.environ.get("JOBRADAR_MAX_ALERTS_PER_SCAN") or "15").strip() or "15"))
+        return max(0, int((os.environ.get("JOBRADAR_MAX_ALERTS_PER_SCAN") or "0").strip() or "0"))
     except ValueError:
-        return 15
+        return 0
 
 
 def within_notify_window(

@@ -128,7 +128,7 @@ def test_health_default_values(capsys, monkeypatch, tmp_path):
     assert "notify window: 3 days" in output  # NOTIFY_WINDOW_DAYS = 3
     assert "link probe: enabled" in output    # default: 1
     assert "alerts: enabled" in output         # default: 1
-    assert "max alerts/scan: 15" in output     # default: 15
+    assert "max alerts/scan: unlimited" in output  # default: 0 (unlimited)
 
 
 def test_health_require_posted_at_flag(capsys, monkeypatch, tmp_path):
