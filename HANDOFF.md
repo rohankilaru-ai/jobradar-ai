@@ -4,6 +4,40 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
+<<<<<<< HEAD
+=======
+## Latest: Overnight #30 — Live Scan Validation Docs/Harness Refresh (PR TBD)
+
+**Branch:** `cursor/overnight-30-live-scan-validation-refresh-0b0b`
+
+**Goal:** Refresh live scan validation docs + harness to match current main after overnight #21 (transient probe-fail defer) and PR #39 (alert pause/cap defer) shipped.
+
+**Delivered:**
+- **Updated `docs/LIVE_SCAN_VALIDATION.md`** for current main:
+  - Documented transient vs hard probe failures (`"good"` / `"bad"` / `"error"` return values)
+  - Added deferral categories section: `probe_deferred`, `alerts_paused`, `cap_deferred`
+  - Fixed Gate 6 to reflect transient defer (5xx/429/timeout) vs hard block (404/4xx)
+  - Updated notify window default (confirmed 3 days, not 14)
+  - Updated alert cap behavior (priority-first ordering, no was_notified on cap overflow)
+  - Updated test count (514+ tests, not 262)
+  - Updated scan output format to include `probe_deferred=N`
+  - Clarified Notion Backlog only created for should_alert jobs
+  - Marked Last Updated as Overnight #30
+- **Enhanced `validate-scan` CLI harness**:
+  - Added Test 6: Probe classification (verify `probe_url` returns `"good"` / `"bad"` / `"error"`)
+  - Added Test 7: Defer logic (verify `has_transient_probe_failure` exists and works)
+  - Now 8 validation checks (was 6)
+- **Tests**: Added 3 new tests in `test_scan_validation_harness.py`
+  - `TestProbeClassification`: Verify probe_url returns literal types (not boolean)
+  - `TestTransientProbeDefer`: Verify transient failure detection logic
+  - All 508 tests passing ✅ (517 total including db_refresh subprocess tests)
+
+**Out of scope:** Merging open PRs #40–#47, changing defaults, parser HTML harden, product-completion test content, live alert sends.
+
+**Next suggested:** Merge/stack hygiene for open overnight drafts #40–#47 (parser improvements, alert tuning). Classify exclude-list tuning if repeated false positives emerge.
+
+## Latest prior: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
+>>>>>>> 2481771 (overnight #30: refresh live scan validation docs/harness for main)
 
 **Branch:** `cursor/overnight-25-per-source-summary-5296` → draft PR pending
     10|

@@ -443,6 +443,54 @@ class TestClassificationEdgeCases:
         assert should_keep(job) is True
 
 
+class TestProbeClassification:
+    """Test probe_url returns good/bad/error (not boolean)."""
+    
+    def test_probe_url_returns_literal_types(self):
+        """probe_url should return 'good', 'bad', or 'error', not boolean."""
+        from jobradar.link_probe import probe_url
+        
+        # Empty URL → bad
+        assert probe_url("") == "bad"
+        
+        # Placeholder → bad
+        assert probe_url("TBD") == "bad"
+        assert probe_url("N/A") == "bad"
+        
+        # No scheme → bad
+        assert probe_url("example.com/job") == "bad"
+
+
+class TestTransientProbeDefer:
+    """Test has_transient_probe_failure and defer behavior."""
+    
+    def test_has_transient_probe_failure_with_probe_disabled(self, monkeypatch):
+        """When probe disabled, has_transient_probe_failure returns False."""
+        monkeypatch.setenv("JOBRADAR_LINK_PROBE", "0")
+        from jobradar.notify import has_transient_probe_failure
+        
+        job = JobRecord(
+            company="Stripe",
+            title="SWE",
+            url="https://stripe.com/jobs/123",
+            sources=["test"],
+        )
+        assert has_transient_probe_failure(job) is False
+    
+    def test_has_transient_probe_failure_with_empty_url(self, monkeypatch):
+        """Empty URLs are not transient failures (just bad)."""
+        monkeypatch.setenv("JOBRADAR_LINK_PROBE", "1")
+        from jobradar.notify import has_transient_probe_failure
+        
+        job = JobRecord(
+            company="Stripe",
+            title="SWE",
+            url="",
+            sources=["test"],
+        )
+        assert has_transient_probe_failure(job) is False
+
+
 class TestStandingRules:
     """Test standing product rules."""
 

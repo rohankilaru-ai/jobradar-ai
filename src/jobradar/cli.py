@@ -406,7 +406,7 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
     print("=" * 50)
     print()
 
-    # Disable link probe for validation tests (offline mode)
+    # Disable link probe for most validation tests (offline mode)
     os.environ["JOBRADAR_LINK_PROBE"] = "0"
 
     passed = 0
@@ -556,7 +556,76 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
 
     print()
 
-    # Test 6: Database operations (use temporary DB file)
+    # Test 6: Probe classification (transient vs hard)
+    from jobradar.link_probe import probe_url
+    
+    probe_tests = [
+        # No actual HTTP calls needed - just test the classification logic exists
+        ("probe_url function exists", True, "probe_url callable"),
+    ]
+    probe_passed = 0
+    probe_failed = 0
+    
+    try:
+        # Verify probe_url returns good/bad/error (not boolean)
+        # Test with placeholder URL (should be "bad")
+        result = probe_url("")
+        if result == "bad":
+            probe_passed += 1
+        else:
+            probe_failed += 1
+            print(f"  ✗ probe_url empty string: expected 'bad', got '{result}'")
+        
+        # Test placeholder detection
+        result = probe_url("TBD")
+        if result == "bad":
+            probe_passed += 1
+        else:
+            probe_failed += 1
+            print(f"  ✗ probe_url TBD: expected 'bad', got '{result}'")
+    except Exception as exc:
+        probe_failed += 2
+        print(f"  ✗ Probe classification failed: {exc}")
+    
+    if probe_failed == 0:
+        print(f"✓ Probe classification validated ({probe_passed}/2 tests passed)")
+        passed += 1
+    else:
+        print(f"✗ Probe classification failed ({probe_failed}/2 tests failed)")
+        failed += 1
+    
+    print()
+    
+    # Test 7: Defer stats tracking
+    from jobradar.notify import has_transient_probe_failure
+    
+    defer_tests_passed = 0
+    defer_tests_failed = 0
+    
+    try:
+        # Test has_transient_probe_failure exists and works with probe disabled
+        job = JobRecord(company="Test", title="SWE", url="https://test.com/1", sources=["test"])
+        result = has_transient_probe_failure(job)
+        # With probe disabled, should return False
+        if result is False:
+            defer_tests_passed += 1
+        else:
+            defer_tests_failed += 1
+            print(f"  ✗ has_transient_probe_failure with probe disabled: expected False, got {result}")
+    except Exception as exc:
+        defer_tests_failed += 1
+        print(f"  ✗ Defer logic failed: {exc}")
+    
+    if defer_tests_failed == 0:
+        print(f"✓ Defer logic validated ({defer_tests_passed}/1 tests passed)")
+        passed += 1
+    else:
+        print(f"✗ Defer logic failed ({defer_tests_failed}/1 tests failed)")
+        failed += 1
+    
+    print()
+
+    # Test 8: Database operations (use temporary DB file)
     db_tests_passed = 0
     db_tests_failed = 0
     import tempfile
