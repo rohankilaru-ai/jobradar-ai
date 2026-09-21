@@ -27,9 +27,9 @@
 - Optional cap still available via env var for spam control if needed
 - Deferred jobs (cap, pause, probe) can still retry on later scans
 
-## Latest prior: Overnight #23 — Add speedyapply INTERN_INTL source (PR #41)
+## Latest prior: Overnight #23 — Add speedyapply INTERN_INTL source (PR #41) — SHIPPED
 
-**Branch:** `cursor/overnight-23-speedyapply-intl-9967`
+**Branch:** `cursor/overnight-23-speedyapply-intl-9967` → squash-merged to main (f3a2dad)
 
 **Goal:** Add the PROJECT_SPEC-planned speedyapply international internship source that was missing.
 
@@ -45,26 +45,30 @@
 - Updated PROJECT_SPEC.md Sources section (removed "later" notation)
 - New-grad sources (NEW_GRAD_INTL.md, NEW_GRAD_USA.md) remain disabled (Rohan targets internships only)
 
-**Status:** Ready to merge (rebased onto PR #40).
+## Latest prior: Overnight #24 — speedyapply AI College Jobs Sources (PR #42)
+
+**Branch:** `cursor/overnight-24-ai-sources-d634`
+
+**Goal:** Complete final PROJECT_SPEC Sources item: add speedyapply AI sibling repo internship sources (README.md + INTERN_INTL.md only; exclude new-grad files).
+
+**Implemented:**
+- **Two new AI internship sources** in `src/jobradar/sources.py`:
+  - `speedyapply-ai-2027` → `https://raw.githubusercontent.com/speedyapply/2027-AI-College-Jobs/main/README.md`
+  - `speedyapply-ai-intl-2027` → `https://raw.githubusercontent.com/speedyapply/2027-AI-College-Jobs/main/INTERN_INTL.md`
+- **Policy enforcement**: NEW_GRAD_USA.md and NEW_GRAD_INTL.md explicitly excluded (internship focus)
+- **Tests** in `tests/test_sources_policy.py`:
+  - `test_speedyapply_ai_sources_enabled()` — verifies both AI internship sources present
+  - `test_speedyapply_ai_newgrad_banned()` — enforces new-grad exclusion policy
+  - Updated `test_sources_are_internship_focused()` documentation to include AI sources
+- **Documentation**:
+  - `PROJECT_SPEC.md` updated: AI sibling repo listed with clear internship-only note
+- Mirrors overnight #23 pattern for speedyapply-swe sources
+- All sources remain internship-focused; pittcsc ban intact
+
+**Testing:** Ready to merge (rebased onto PRs #40 and #41)
 
 
 ## Latest prior: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
-
-**Branch:** `cursor/overnight-21-probe-defer-0a52` → squash-merged to main
-
-**Problem:** Transient link-probe failures (timeout, 5xx, connection errors) were permanently silencing jobs by marking `was_notified`. Later scans could not re-alert even after URLs recovered.
-
-**Fixed / shipped:**
-- **Transient vs hard probe failures**: Distinguish between transient (timeout, 5xx, 429, connection error) and hard (404, empty URL, example.com) failures
-- **Transient handling**: Write JSONL for persistence, skip live alerts, do NOT mark `was_notified` → allows retry when URL recovers
-- **Hard failures**: Permanent blocks (skip live alerts, existing behavior preserved)
-- **Successful alerts**: Mark `was_notified`, prevent double-alert (unchanged)
-- **Stats tracking**: Pipeline now tracks `probe_deferred` stat, included in scan output
-- **Merged with pause/cap defer**: Works alongside PR #39's `record_as_notified` parameter and priority-first ordering
-- **Implementation**:
-  - `link_probe.py`: Update `probe_url()` to return `"good"` (2xx/3xx), `"bad"` (4xx except 429), or `"error"` (5xx, 429, timeout, connection errors)
-  - `notify.py`: Add `has_transient_probe_failure()`, update `job_notify_block_reason()`, handle transient failures in `Notifier.notify()` (integrates with `record_as_notified` param)
-  - `pipeline.py`: Add `probe_deferred` stat alongside `alerts_paused` and `cap_deferred`, preserve priority-first ordering
   - `cli.py`: Include `probe_deferred` in scan output
 - **Tests**: 13 new tests in `tests/test_probe_defer.py`
 - Rebased onto main after PR #39 merged (parser hardening + pause/cap defer)
