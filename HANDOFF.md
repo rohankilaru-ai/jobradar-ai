@@ -4,9 +4,42 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #32 — Classify Exclude-List Tuning (PR #50) — READY FOR REVIEW
+## Latest: Overnight #33 — Scout/Health Observability (PR #51) — COMPLETE
 
-**Branch:** `cursor/overnight-32-classify-exclude-tune-b21d` → draft PR #50
+**Branch:** `cursor/overnight-33-scout-health-37dc` → draft PR #51
+
+**Goal:** Add scout/health observability so stale/broken sources are visible without manual spot-checks. Build on overnight #25 per-source summary.
+
+**Delivered:**
+- **Scout health metrics persistence**: New `scout_health` SQLite table tracks per-source fetch outcomes over time
+  - Records: source_name, status (ok/not_modified/error), job_count, http_status, error_detail, was_cached, fetched_at
+  - Automatic recording in `scout.scout_all()` after each source fetch
+  - DB methods: `record_scout_health()`, `get_scout_health_latest()`, `get_scout_health_history()`
+- **Enhanced `health` CLI**: New scout health section shows:
+  - Configured source count (from SOURCES catalog)
+  - Last scan outcomes: ok=N cached=N error=N
+  - Recent failures (up to 5) with error details
+  - Clear "no history yet (run scan to populate)" when empty
+- **Soft-fail preserved**: One bad source still doesn't abort the scan (existing behavior maintained)
+- **Tests**: 14 new tests in `tests/test_scout_health.py`
+  - DB health recording and queries
+  - Scout integration (ok/error/304 outcomes)
+  - Health CLI display (no history, with history, all-ok, error limits)
+  - All 590 tests passing ✅ (5 pre-existing subprocess failures unrelated)
+- **Schema migration**: scout_health table added to db.py SCHEMA, auto-created on first run
+
+**Impact:**
+- Source health visible in `python -m jobradar health` without live network calls
+- Historical reliability tracking enables proactive source monitoring
+- Failure details preserved for debugging (HTTP status, error messages)
+- ETag cache hit indicators tracked for fetch efficiency visibility
+
+**Out of scope:** Gmail work, classify exclude tuning, live alert sends, merging open PRs.
+
+## Latest prior: Overnight #32 — Classify Exclude-List Tuning (PR #50) — LANDED
+
+**Branch:** `cursor/overnight-32-classify-exclude-tune-b21d` → squash-merged to main (3da2237)
+
 **Goal:** Tune classification exclude-list to reduce non-technical internship noise without dropping real SWE/ML/data/quant/infra roles.
 
 **Shipped:**
@@ -33,7 +66,7 @@
 
 **Impact:** More precise filtering of non-technical roles (product management, business ops, marketing, support, compliance) while maintaining strong recall for technical SWE/ML/data/quant/infra roles via override mechanism.
 
-**Next suggested:** Scout/health observability improvements — Add structured logging and metrics for scout source health (fetch success/fail rates, ETag hit rates, parse errors by source, job yield trends). Would help identify stale/broken sources proactively and improve confidence in scan completeness without manual spot-checks.
+**Status:** Squash-merged to main as part of overnight #34 stack hygiene.
 
 ## Latest prior: Overnight #31 — Merge/Stack Hygiene (PRs #40-#48) — COMPLETE
 
