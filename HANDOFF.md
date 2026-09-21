@@ -4,7 +4,31 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Job apps org + cloud scan (this PR)
+## Latest: Overnight #12 — Product-completion tests (PR #29)
+
+**Problem:** After parser hardening (PRs #27, #28), needed comprehensive product-completion tests to validate the full scan → classify → store → notify pipeline with all quality gates.
+
+**Fixed / shipped:**
+- **10 new product-completion tests** in `tests/test_pipeline_quality_gates.py`
+- **Bad URL blocking:** Tests that empty URLs, placeholders (TBD/N/A), generic career pages (`/careers`, `/jobs/search`), and probe failures are blocked from notifications
+- **HTML sanitization:** Tests that HTML tags in company/title fields trigger block
+- **Domain/company matching:** Tests that domain mismatches (e.g., Google job on facebook.com) are blocked
+- **Recruiting platform allowlist:** Tests that Greenhouse, Lever, Ashby URLs pass domain check when company name in path
+- **Alert cap enforcement:** Tests that `JOBRADAR_MAX_ALERTS_PER_SCAN` works correctly (notifies cap, rest marked silent)
+- **Error resilience:** Tests that Director/Notion API errors don't crash the pipeline (try-except blocks working)
+- **Posted_at window logic:** Tests both `JOBRADAR_REQUIRE_POSTED_AT=1` (strict) and `=0` (fallback to first_seen_at)
+- **Full integration test:** Comprehensive test with mix of good/bad jobs through complete pipeline
+- All 272 tests pass (262 existing + 10 new)
+
+**Impact:**
+- Product-completion coverage proves pipeline can run safely overnight without spamming bad URLs
+- Quality gates validated: scan → classify → dedupe → store → notify gates all tested
+- Error paths proven resilient (Director/Notion failures don't break alerting)
+- Alert cap enforcement confirmed working
+
+**Next:** Live scan validation docs (after product-completion tests ship)
+
+## Latest prior: Job apps org + cloud scan (PR #17)
 
 **Problem:** Duplicate flat vs nested Gmail labels; Notion hard to navigate; scan required Mac awake (`scan --loop`).
 
