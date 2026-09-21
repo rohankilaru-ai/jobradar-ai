@@ -18,6 +18,15 @@ log = logging.getLogger("jobradar.pipeline")
 
 
 @dataclass
+class SourceSummary:
+    """Per-source scout summary."""
+    name: str
+    status: str  # "ok" | "not_modified" | "error"
+    job_count: int = 0
+    error_detail: str | None = None
+
+
+@dataclass
 class PipelineStats:
     fetched: int = 0
     kept: int = 0
@@ -32,6 +41,10 @@ class PipelineStats:
     seeded: int = 0
     source_errors: list[str] = field(default_factory=list)
     seed_mode: bool = False
+    sources: list[SourceSummary] = field(default_factory=list)
+    sources_ok: int = 0
+    sources_not_modified: int = 0
+    sources_failed: int = 0
 
 
 @dataclass
@@ -41,6 +54,10 @@ class RefreshStats:
     rewritten: int = 0
     skipped: int = 0
     source_errors: list[str] = field(default_factory=list)
+    sources: list[SourceSummary] = field(default_factory=list)
+    sources_ok: int = 0
+    sources_not_modified: int = 0
+    sources_failed: int = 0
 
 
 def run_scan(
@@ -65,17 +82,39 @@ def run_scan(
     alertable_jobs: list[JobRecord] = []
 
     for result in results:
+        # Track per-source summary
         if result.error:
+            stats.sources.append(
+                SourceSummary(
+                    name=result.source,
+                    status="error",
+                    job_count=0,
+                    error_detail=result.error,
+                )
+            )
+            stats.sources_failed += 1
             stats.source_errors.append(f"{result.source}: {result.error}")
             continue
         if result.not_modified:
+            stats.sources.append(
+                SourceSummary(
+                    name=result.source,
+                    status="not_modified",
+                    job_count=0,
+                )
+            )
+            stats.sources_not_modified += 1
             continue
+        
+        # Track OK sources (will count jobs below)
+        source_job_count = 0
         for job in result.jobs:
             stats.fetched += 1
             if not should_keep(job):
                 continue
             job = enrich(job)
             stats.kept += 1
+            source_job_count += 1  # Count kept jobs for this source
             if is_bad_url(job.url):
                 stats.skipped_bad_url += 1
                 log.debug("skipping job with bad URL: %s | %s", job.company, job.title)
@@ -101,6 +140,16 @@ def run_scan(
                 from jobradar.notify import job_notify_block_reason
                 if not job_notify_block_reason(stored):
                     alertable_jobs.append(stored)
+        
+        # Add source summary for successful sources
+        stats.sources.append(
+            SourceSummary(
+                name=result.source,
+                status="ok",
+                job_count=source_job_count,
+            )
+        )
+        stats.sources_ok += 1
 
     # Priority-first ordering: sort alertable jobs by tier before applying cap
     # Tier order: priority (0) → fortune500 (1) → other (2)
@@ -192,11 +241,32 @@ def refresh_jobs(
     seen_in_pass: list[JobRecord] = []
 
     for result in results:
+        # Track per-source summary
         if result.error:
+            stats.sources.append(
+                SourceSummary(
+                    name=result.source,
+                    status="error",
+                    job_count=0,
+                    error_detail=result.error,
+                )
+            )
+            stats.sources_failed += 1
             stats.source_errors.append(f"{result.source}: {result.error}")
             continue
         if result.not_modified:
+            stats.sources.append(
+                SourceSummary(
+                    name=result.source,
+                    status="not_modified",
+                    job_count=0,
+                )
+            )
+            stats.sources_not_modified += 1
             continue
+        
+        # Track OK sources (will count jobs below)
+        source_job_count = 0
         for job in result.jobs:
             stats.scanned += 1
             if not should_keep(job):
@@ -214,6 +284,7 @@ def refresh_jobs(
                 continue
             
             stats.matched += 1
+            source_job_count += 1  # Count matched jobs for this source
             
             needs_rewrite = (
                 existing_job.company != job.company
@@ -228,5 +299,15 @@ def refresh_jobs(
                 seen_in_pass.append(stored)
             else:
                 seen_in_pass.append(existing_job)
+        
+        # Add source summary for successful sources
+        stats.sources.append(
+            SourceSummary(
+                name=result.source,
+                status="ok",
+                job_count=source_job_count,
+            )
+        )
+        stats.sources_ok += 1
     
     return stats

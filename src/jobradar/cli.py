@@ -98,6 +98,21 @@ def cmd_scan(args: argparse.Namespace) -> int:
             f"new={stats.new} notified={stats.notified} alerted={stats.alerted} "
             f"probe_deferred={stats.probe_deferred}"
         )
+        
+        # Per-source breakdown
+        if stats.sources:
+            print(
+                f"sources: ok={stats.sources_ok} not_modified={stats.sources_not_modified} "
+                f"failed={stats.sources_failed}"
+            )
+            for src in stats.sources:
+                if src.status == "ok":
+                    print(f"  {src.name}: {src.job_count} jobs")
+                elif src.status == "not_modified":
+                    print(f"  {src.name}: not_modified (304)")
+                else:  # error
+                    print(f"  {src.name}: error ({src.error_detail})")
+        
         if stats.alert_cap_hit:
             print(
                 "alert_cap_hit: more new jobs existed but JOBRADAR_MAX_ALERTS_PER_SCAN "
@@ -278,6 +293,21 @@ def cmd_refresh_jobs(_: argparse.Namespace) -> int:
         f"refresh done scanned={stats.scanned} matched={stats.matched} "
         f"rewritten={stats.rewritten} skipped={stats.skipped}"
     )
+    
+    # Per-source breakdown
+    if stats.sources:
+        print(
+            f"sources: ok={stats.sources_ok} not_modified={stats.sources_not_modified} "
+            f"failed={stats.sources_failed}"
+        )
+        for src in stats.sources:
+            if src.status == "ok":
+                print(f"  {src.name}: {src.job_count} jobs")
+            elif src.status == "not_modified":
+                print(f"  {src.name}: not_modified (304)")
+            else:  # error
+                print(f"  {src.name}: error ({src.error_detail})")
+    
     if stats.source_errors:
         for err in stats.source_errors:
             print(f"source_error: {err}")
