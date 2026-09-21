@@ -137,3 +137,48 @@ def test_ping_configured_partial_failure(mock_post, monkeypatch):
     mock_post.side_effect = Exception("Connection refused")
     lines = ping_configured()
     assert any("error" in line for line in lines)
+
+
+def test_enqueue_never_hangs_on_missing_keys(monkeypatch, tmp_path):
+    """Verify fast path: missing keys never block or wait on HTTP."""
+    import time
+
+    monkeypatch.delenv("GROK_BOT_WEBHOOK_JOB_ANALYST", raising=False)
+    monkeypatch.delenv("GROK_BOT_KEY_JOB_ANALYST", raising=False)
+    monkeypatch.delenv("GROK_BOT_WEBHOOK_RESUME_MAPPER", raising=False)
+    monkeypatch.delenv("GROK_BOT_KEY_RESUME_MAPPER", raising=False)
+    db = Database(tmp_path / "t.db")
+    job = JobRecord(company="TestCo", title="Engineer", url="https://example.com/job")
+    start = time.time()
+    attempted = enqueue(job, db)
+    elapsed = time.time() - start
+    assert len(attempted) == 0
+    assert elapsed < 0.1, "enqueue should skip instantly when keys are missing"
+
+
+def test_ping_configured_never_hangs_on_missing_keys(monkeypatch):
+    """Verify fast path: missing keys never block or wait on HTTP."""
+    import time
+
+    monkeypatch.delenv("GROK_BOT_WEBHOOK_JOB_ANALYST", raising=False)
+    monkeypatch.delenv("GROK_BOT_KEY_JOB_ANALYST", raising=False)
+    monkeypatch.delenv("GROK_BOT_WEBHOOK_RESUME_MAPPER", raising=False)
+    monkeypatch.delenv("GROK_BOT_KEY_RESUME_MAPPER", raising=False)
+    start = time.time()
+    lines = ping_configured()
+    elapsed = time.time() - start
+    assert all("skipped" in line for line in lines)
+    assert elapsed < 0.1, "ping_configured should skip instantly when keys are missing"
+
+
+def test_enqueue_all_agents_missing_keys_with_db_recording(monkeypatch, tmp_path):
+    """All agents skip cleanly and DB records skipped status."""
+    monkeypatch.delenv("GROK_BOT_WEBHOOK_JOB_ANALYST", raising=False)
+    monkeypatch.delenv("GROK_BOT_KEY_JOB_ANALYST", raising=False)
+    monkeypatch.delenv("GROK_BOT_WEBHOOK_RESUME_MAPPER", raising=False)
+    monkeypatch.delenv("GROK_BOT_KEY_RESUME_MAPPER", raising=False)
+    db = Database(tmp_path / "t.db")
+    job = JobRecord(company="TestCo", title="Engineer", url="https://example.com/job")
+    attempted = enqueue(job, db)
+    assert len(attempted) == 0
+    assert db.count_agent_runs() == 2

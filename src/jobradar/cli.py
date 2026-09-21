@@ -263,6 +263,41 @@ def cmd_db_init(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_db_refresh(args: argparse.Namespace) -> int:
+    """Safe DB refresh: backup existing DB, then recreate empty schema."""
+    import shutil
+    from datetime import datetime, timezone
+
+    db_path = Path(os.environ.get("JOBRADAR_DB_PATH", "data/jobradar.db"))
+
+    if not db_path.exists():
+        print(f"error: no DB at {db_path}")
+        return 1
+
+    if args.no_backup:
+        print("warning: --no-backup skips safety copy (testing only)")
+        confirm = input("type YES to wipe DB without backup: ")
+        if confirm != "YES":
+            print("aborted")
+            return 1
+    else:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        backup_path = Path(f"{db_path}.backup_{timestamp}")
+        print(f"backing up: {db_path} → {backup_path}")
+        shutil.copy(db_path, backup_path)
+        print(f"backup saved: {backup_path}")
+
+    print(f"removing: {db_path}")
+    db_path.unlink()
+
+    print("recreating empty schema...")
+    db = Database(db_path)
+    print(f"db refresh complete: {db.path} ({db.count_jobs()} jobs)")
+    if not args.no_backup:
+        print(f"restore with: cp {backup_path} {db_path}")
+    return 0
+
+
 def cmd_quarantine_bad_urls(args: argparse.Namespace) -> int:
     import httpx
 
@@ -583,6 +618,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     db_init = sub.add_parser("db-init", help="Initialize empty DB schema (see scripts/fresh_db_backup.sh)")
     db_init.set_defaults(func=cmd_db_init)
+    
+    db_refresh = sub.add_parser(
+        "db-refresh",
+        help="Safe DB refresh: backup existing DB, then recreate empty schema",
+    )
+    db_refresh.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Skip backup (testing only; requires interactive confirmation)",
+    )
+    db_refresh.set_defaults(func=cmd_db_refresh)
+    
     refresh = sub.add_parser("refresh-jobs", help="Silent job field refresh (no notifications)")
     refresh.set_defaults(func=cmd_refresh_jobs)
     qb = sub.add_parser(
