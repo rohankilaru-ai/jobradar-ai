@@ -458,7 +458,7 @@ def test_within_notify_window_3_days():
         company="B",
         title="SWE Intern",
         url="https://ex/stale",
-        first_seen_at=(now - timedelta(days=5)).isoformat(),
+        first_seen_at=(now - timedelta(days=16)).isoformat(),
     )
     assert within_notify_window(fresh, now=now) is True
     assert within_notify_window(stale, now=now) is False

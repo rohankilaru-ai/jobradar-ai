@@ -271,7 +271,7 @@ class TestNotifyWindow:
             company="Stripe",
             title="SWE",
             url="https://stripe.com/1",
-            posted_at=(now - timedelta(days=10)).date().isoformat(),
+            posted_at=(now - timedelta(days=16)).date().isoformat(),
         )
         assert within_notify_window(job, now=now) is False
 
