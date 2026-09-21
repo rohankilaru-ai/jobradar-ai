@@ -32,6 +32,8 @@ load_dotenv()
 
 
 def cmd_health(_: argparse.Namespace) -> int:
+    from jobradar.notify import alerts_enabled, max_alerts_per_scan, require_posted_at
+    
     db = Database()
     channels = ["jsonl"]
     if discord_configured():
@@ -43,6 +45,14 @@ def cmd_health(_: argparse.Namespace) -> int:
     print(f"jobradar {__version__} ok")
     print(f"db: {db.path} ({db.count_jobs()} jobs, {db.count_applications()} applications)")
     print("notifiers: " + " + ".join(channels))
+    
+    # Alert gates status
+    alert_status = "enabled" if alerts_enabled() else "PAUSED"
+    max_cap = max_alerts_per_scan()
+    cap_str = f"cap={max_cap}" if max_cap > 0 else "unlimited"
+    require_date = "require_posted_at" if require_posted_at() else "allow_undated"
+    print(f"alerts: {alert_status} ({cap_str}, {require_date})")
+    
     from jobradar import gmail as gmail_mod
     from jobradar import notion as notion_mod
     from jobradar.notify import (
