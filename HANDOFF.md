@@ -4,7 +4,31 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
+## Latest: Overnight #22 — Default Unlimited Alert Cap (PR #40) — SHIPPED
+
+**Branch:** `cursor/overnight-22-unlimited-alert-cap-dacc` → draft PR #40 open
+
+**Problem:** With `JOBRADAR_MAX_ALERTS_PER_SCAN` defaulting to 15, alert #16+ still landed in SQLite but never hit Discord — easy to think listings were "lost." Standing product priority: notification speed; false positives OK; missed jobs not OK.
+
+**Fixed / shipped:**
+- **Default unlimited:** `JOBRADAR_MAX_ALERTS_PER_SCAN` now defaults to `0` (unlimited) instead of `15`
+- **Code:** Updated `notify.py` `max_alerts_per_scan()` to default to "0" with proper docstring
+- **Environment defaults:** Updated `.env.example` and `.github/workflows/cloud-scan.yml` to default to `0`
+- **Optional cap preserved:** When explicitly set to a positive value, existing overnight #18–#20 behavior still works:
+  - Priority-first then Fortune500 then Other ordering
+  - Overflow jobs are `cap_deferred` (JSONL persisted, NOT marked `was_notified`) so later scans can alert them
+- **Probe/pause defer:** Preserved overnight #21 `probe_deferred` and `alerts_paused` defer semantics
+- **Tests:** Updated 3 tests to expect 0 as default; all 514 tests pass ✅
+- **Documentation:** Updated `CLOUD_SCAN.md` and `LIVE_SCAN_VALIDATION.md` to reflect unlimited-by-default with optional cap
+- **PR:** Draft PR #40 created: https://github.com/rohankilaru-ai/jobradar-ai/pull/40
+
+**Impact:**
+- No more artificial per-scan alert ceiling by default — all qualifying jobs alert
+- Users won't miss alert #16+ due to default cap
+- Optional cap still available via env var for spam control if needed
+- Deferred jobs (cap, pause, probe) can still retry on later scans
+
+## Latest prior: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
 
 **Branch:** `cursor/overnight-21-probe-defer-0a52` → squash-merged to main
 
@@ -231,7 +255,7 @@ python -m jobradar verify-links --urls https://example.com/job1 https://example.
 **Remaining (not yet merged):**
 1. Director `.env` keys wiring (by Rohan after specialist UI exposes webhook URLs)
 2. Twilio SMS deferred (ntfy is the phone push path)
-3. Later: Gmail inbox bot (Phase 4), 24/7 VM for Python loop
+3. Draft PR #23: Gmail/Notion inbox pack (do NOT touch — separate workstream)
 4. Do **not** scrape `pittcsc/Summer2027-Internships`
 
 ## Rohan-only items (blocked on keys/credentials)

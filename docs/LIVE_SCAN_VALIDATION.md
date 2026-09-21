@@ -367,21 +367,23 @@ JOBRADAR_NOTIFY_WINDOW_DAYS=7 python -m jobradar scan --once
 
 ### `JOBRADAR_MAX_ALERTS_PER_SCAN`
 
-**Default:** `15`
+**Default:** `0` (unlimited)
 
-**Caps live Discord/ntfy/Telegram alerts per scan run.**
+**Caps live Discord/ntfy/Telegram alerts per scan run (optional).**
 
 **Why:**
-Prevents notification spam if a bulk source update dumps hundreds of new jobs at once.
+Optional spam control if a bulk source update dumps hundreds of new jobs at once.
 
 **Behavior:**
 - JSONL writes are unlimited (all new jobs recorded)
-- Discord/ntfy/Telegram stop after N alerts
+- When cap > 0: Discord/ntfy/Telegram stop after N alerts (priority-first ordering)
+- When cap = 0 (default): No artificial limit, all qualifying jobs alert
+- Capped jobs are deferred (not permanently silenced) so later scans can alert them
 - `stats.alert_cap_hit` is True if cap was reached
 
 **Examples:**
-- `15` — Max 15 live alerts per scan (default)
-- `0` — Unlimited alerts
+- `0` — Unlimited alerts (default — you won't miss alert #16+)
+- `15` — Max 15 live alerts per scan (priority first)
 - `5` — Max 5 alerts (very conservative)
 
 **Usage:**

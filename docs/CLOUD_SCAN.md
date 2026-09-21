@@ -87,10 +87,10 @@ Refresh tokens expire if unused for long periods — re-run `gmail-auth` locally
 |---|---|
 | **Pause all alerts now** | GitHub → Actions → **cloud-scan** → `...` menu → **Disable workflow** |
 | **Pause without disabling** | Settings → Actions → Variables → `JOBRADAR_ALERTS_ENABLED` = `0` |
-| **Fewer alerts per run** | Variable `JOBRADAR_MAX_ALERTS_PER_SCAN` (default `15`) |
+| **Optional alert cap** | Variable `JOBRADAR_MAX_ALERTS_PER_SCAN` (`0` = unlimited, default) |
 | **Stricter freshness** | Variable `JOBRADAR_NOTIFY_WINDOW_DAYS` (default `3`) |
 
-By default cloud-scan only Discord-alerts jobs with a known **source post date** within 3 days (`JOBRADAR_REQUIRE_POSTED_AT=1`). Older undated Simplify rows no longer flood just because cloud first saw them today.
+By default cloud-scan Discord-alerts **every** matching new job with a known **source post date** within 3 days (`JOBRADAR_REQUIRE_POSTED_AT=1`). No per-scan cap — you will not miss alert #16+. Older undated Simplify rows still do not flood just because cloud first saw them today.
 
 ## Local loop
 
