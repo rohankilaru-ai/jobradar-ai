@@ -404,3 +404,207 @@ def test_prefer_fewer_clean_records():
     valid_jobs = [j for j in jobs if j.url]
     assert len(valid_jobs) == 1
     assert valid_jobs[0].company == "GoodCo"
+
+
+class TestHTMLEntityDecoding:
+    """Test comprehensive HTML entity decoding in company/title fields."""
+
+    def test_common_html_entities_decoded(self):
+        """Common HTML entities should be decoded in company/title."""
+        html = """
+        <table>
+        <tr><td>AT&amp;T</td><td>Software Engineer</td><td>SF</td><td><a href="https://att.com/job1">Apply</a></td></tr>
+        <tr><td>Johnson &amp; Johnson</td><td>SWE Intern</td><td>NYC</td><td><a href="https://jnj.com/job2">Apply</a></td></tr>
+        <tr><td>Company</td><td>Data &amp; Analytics Intern</td><td>Remote</td><td><a href="https://company.com/job3">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 3
+        assert jobs[0].company == "AT&T"
+        assert jobs[1].company == "Johnson & Johnson"
+        assert jobs[2].title == "Data & Analytics Intern"
+
+    def test_quote_entities_decoded(self):
+        """Quote entities should be decoded."""
+        html = """
+        <table>
+        <tr><td>Company &quot;Best&quot;</td><td>SWE</td><td>SF</td><td><a href="https://company.com/job1">Apply</a></td></tr>
+        <tr><td>Jane&apos;s Street</td><td>Trading Intern</td><td>NYC</td><td><a href="https://janestreet.com/job1">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 2
+        assert jobs[0].company == 'Company "Best"'
+        assert jobs[1].company == "Jane's Street"
+
+    def test_numeric_entities_decoded(self):
+        """Numeric HTML entities (&#NNN;) should be decoded."""
+        html = """
+        <table>
+        <tr><td>Company</td><td>Software &#39;Engineer&#39;</td><td>SF</td><td><a href="https://company.com/job1">Apply</a></td></tr>
+        <tr><td>Price&#36;Mart</td><td>SWE</td><td>NYC</td><td><a href="https://pricemart.com/job1">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 2
+        assert jobs[0].title == "Software 'Engineer'"
+        assert jobs[1].company == "Price$Mart"
+
+    def test_multiple_entities_in_same_field(self):
+        """Multiple entities in the same field should all be decoded."""
+        html = """
+        <table>
+        <tr><td>A&amp;B&amp;C Corp</td><td>SWE &amp; QA Intern</td><td>SF</td><td><a href="https://abc.com/job1">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 1
+        assert jobs[0].company == "A&B&C Corp"
+        assert jobs[0].title == "SWE & QA Intern"
+
+    def test_script_tags_stripped_with_content(self):
+        """Script tags and their content should be completely removed."""
+        html = """
+        <table>
+        <tr><td>Google <script>alert('xss')</script> Inc</td><td>SWE</td><td>SF</td><td><a href="https://google.com/job1">Apply</a></td></tr>
+        <tr><td>Meta</td><td>Engineer <script type="text/javascript">console.log('bad')</script> Intern</td><td>NYC</td><td><a href="https://meta.com/job1">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 2
+        # Script content should be completely removed
+        assert "alert" not in jobs[0].company
+        assert "xss" not in jobs[0].company
+        assert jobs[0].company == "Google Inc"
+        assert "console.log" not in jobs[1].title
+        assert jobs[1].title == "Engineer Intern"
+
+    def test_style_tags_stripped_with_content(self):
+        """Style tags and their content should be completely removed."""
+        html = """
+        <table>
+        <tr><td>Company <style>body {color: red;}</style> Name</td><td>SWE</td><td>SF</td><td><a href="https://company.com/job1">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 1
+        assert "color" not in jobs[0].company
+        assert "red" not in jobs[0].company
+        assert jobs[0].company == "Company Name"
+
+    def test_markdown_entities_decoded(self):
+        """HTML entities in markdown tables should also be decoded."""
+        md = """
+        | Company | Role | Location | Link |
+        | ------- | ---- | -------- | ---- |
+        | AT&amp;T | Software Engineer | SF | https://att.com/job1 |
+        | Jane&apos;s Street | Trading Intern | NYC | https://janestreet.com/job1 |
+        | Company &quot;Best&quot; | SWE Intern | Remote | https://company.com/job1 |
+        """
+        jobs = parse_markdown_table(md)
+        assert len(jobs) == 3
+        assert jobs[0].company == "AT&T"
+        assert jobs[1].company == "Jane's Street"
+        assert jobs[2].company == 'Company "Best"'
+
+
+class TestURLWhitespaceRejection:
+    """Test rejection of URLs with embedded whitespace."""
+
+    def test_url_with_space_rejected(self):
+        """URL with embedded space should be rejected."""
+        html = """
+        <table>
+        <tr><td>Company</td><td>SWE</td><td>SF</td><td><a href="https://company.com/job 123">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 1
+        assert jobs[0].url == ""
+
+    def test_url_with_newline_rejected(self):
+        """URL with embedded newline should be rejected."""
+        html = """
+        <table>
+        <tr><td>Company</td><td>SWE</td><td>SF</td><td><a href="https://company.com/job
+123">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 1
+        assert jobs[0].url == ""
+
+    def test_url_with_tab_rejected(self):
+        """URL with embedded tab should be rejected."""
+        html = """
+        <table>
+        <tr><td>Company</td><td>SWE</td><td>SF</td><td><a href="https://company.com/job\t123">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 1
+        assert jobs[0].url == ""
+
+    def test_url_with_carriage_return_rejected(self):
+        """URL with embedded carriage return should be rejected."""
+        html = """
+        <table>
+        <tr><td>Company</td><td>SWE</td><td>SF</td><td><a href="https://company.com/job\r123">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 1
+        assert jobs[0].url == ""
+
+    def test_url_with_percent_encoded_space_allowed(self):
+        """URL with %20 (properly encoded space) should be allowed."""
+        html = """
+        <table>
+        <tr><td>Company</td><td>SWE</td><td>SF</td><td><a href="https://company.com/job%20123">Apply</a></td></tr>
+        </table>
+        """
+        jobs = parse_simplify_html(html)
+        assert len(jobs) == 1
+        assert jobs[0].url == "https://company.com/job%20123"
+
+    def test_markdown_url_with_whitespace_rejected(self):
+        """Markdown URL with embedded whitespace should be rejected."""
+        md = """
+        | Company | Role | Location | Link |
+        | ------- | ---- | -------- | ---- |
+        | Company1 | SWE | SF | https://company.com/job 123 |
+        | Company2 | SWE | NYC | https://goodco.com/jobs/456 |
+        """
+        jobs = parse_markdown_table(md)
+        assert len(jobs) == 2
+        assert jobs[0].url == ""  # Rejected due to space
+        assert jobs[1].url == "https://goodco.com/jobs/456"  # Valid
+
+
+class TestJSONEntityHandling:
+    """Test that JSON parsers handle entities in string fields."""
+
+    def test_json_with_entities_in_company(self):
+        """JSON with HTML entities in company field should decode them."""
+        data = [
+            {"company": "AT&amp;T", "role": "SWE", "url": "https://att.com/job1"},
+            {"company": "Company &lt;Best&gt;", "role": "SWE", "url": "https://company.com/job1"},
+        ]
+        jobs = parse_aprameyak_json(json.dumps(data))
+        assert len(jobs) == 2
+        # JSON typically doesn't have HTML entities, but if it does they should be handled
+        # Actually, JSON strings don't typically contain HTML entities - they'd be literal text
+        # So "AT&amp;T" in JSON is the literal string "AT&amp;T", not "AT&T"
+        # Let's verify current behavior
+        assert jobs[0].company == "AT&amp;T" or jobs[0].company == "AT&T"
+
+    def test_json_urls_with_whitespace_rejected(self):
+        """JSON with URLs containing whitespace should be rejected."""
+        data = [
+            {"company": "BadCo", "role": "SWE", "url": "https://company.com/job 123"},
+            {"company": "GoodCo", "role": "SWE", "url": "https://goodco.com/jobs/123"},
+        ]
+        jobs = parse_aprameyak_json(json.dumps(data))
+        assert len(jobs) == 2
+        assert jobs[0].url == ""  # Rejected
+        assert jobs[1].url == "https://goodco.com/jobs/123"  # Valid

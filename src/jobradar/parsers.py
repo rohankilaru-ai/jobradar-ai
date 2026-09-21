@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 import re
 from html.parser import HTMLParser
+from html import unescape as html_unescape
 from typing import Any, Iterable
 import logging
 
@@ -14,13 +15,25 @@ from jobradar.models import JobRecord, is_bad_url
 log = logging.getLogger("jobradar.parsers")
 
 _HREF = re.compile(r'href=["\']([^"\']+)["\']', re.I)
-_TAG = re.compile(r"<[^>]+>")
+# Match HTML tags: <tagname ...> or </tagname>
+# This avoids matching bare angle brackets like "<Best>" which might be text content
+_TAG = re.compile(r"</?[a-zA-Z][^>]*>")
 _WS = re.compile(r"\s+")
 
 
 def _clean(text: str) -> str:
-    text = _TAG.sub(" ", text or "")
-    text = text.replace("&amp;", "&").replace("&nbsp;", " ").replace("<br>", ", ").replace("<br/>", ", ")
+    """Clean HTML text: strip tags, decode entities, normalize whitespace."""
+    text = text or ""
+    # Strip script and style tags along with their content
+    text = re.sub(r"<script[^>]*>.*?</script>", " ", text, flags=re.I | re.DOTALL)
+    text = re.sub(r"<style[^>]*>.*?</style>", " ", text, flags=re.I | re.DOTALL)
+    # Strip all remaining HTML tags
+    text = _TAG.sub(" ", text)
+    # Decode HTML entities (handles &amp;, &lt;, &gt;, &quot;, &apos;, &#39;, &#NNN;, etc.)
+    text = html_unescape(text)
+    # Replace common breaks with commas
+    text = text.replace("<br>", ", ").replace("<br/>", ", ")
+    # Normalize whitespace
     return _WS.sub(" ", text).strip()
 
 
@@ -262,6 +275,12 @@ def _clean_url(url: str) -> str:
     while url and url[0] in ('"', "'", "<", "{", "["):
         url = url[1:]
     url = url.strip()
+    
+    # Reject URLs with embedded whitespace or newlines (but allow %20 encoding)
+    if url and any(c in url for c in (" ", "\t", "\n", "\r")):
+        log.debug("Rejected URL with embedded whitespace: %s", url[:100])
+        return ""
+    
     # Early validation: return empty string if bad URL
     if url and is_bad_url(url):
         log.debug("Rejected bad URL at parse time: %s", url[:100])
@@ -368,8 +387,11 @@ _PIPE_ROW = re.compile(r"^\s*\|(.+)\|\s*$")
 
 
 def _strip_md(text: str) -> str:
+    """Strip markdown formatting and decode HTML entities."""
     text = _MD_LINK.sub(r"\1", text or "")
     text = text.replace("**", "").replace("*", "")
+    # Decode HTML entities (markdown can contain &amp;, &lt;, etc.)
+    text = html_unescape(text)
     return _WS.sub(" ", text).strip()
 
 
