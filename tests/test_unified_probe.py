@@ -34,10 +34,14 @@ def test_probe_url_bad_404_maps_to_false(respx_mock):
 
 
 def test_probe_url_bad_500_maps_to_false(respx_mock):
-    """probe_url 'bad' (5xx) → probe_url_for_notify False"""
+    """probe_url 'error' (5xx transient) → probe_url_for_notify False
+    
+    PR #38: 5xx now treated as 'error' (transient) instead of 'bad' (permanent).
+    This allows jobs to be retried later instead of being permanently silenced.
+    """
     respx_mock.head("https://example.com/job").mock(return_value=httpx.Response(500))
     
-    assert probe_url("https://example.com/job") == "bad"
+    assert probe_url("https://example.com/job") == "error"
     assert probe_url_for_notify("https://example.com/job") is False
 
 

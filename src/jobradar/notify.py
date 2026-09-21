@@ -375,6 +375,9 @@ def probe_url(url: str, *, timeout: float = 3.0) -> bool:
     
     NOTE: This function is used for backward compatibility. For distinguishing
     transient vs hard failures, use link_probe.probe_url instead.
+    
+    Tries HEAD first (faster), falls back to GET if HEAD returns 405/501 (some servers
+    don't support HEAD).
     """
     if not link_probe_enabled():
         return True  # Bypass probe in tests
@@ -383,10 +386,33 @@ def probe_url(url: str, *, timeout: float = 3.0) -> bool:
     if not url or not url.startswith("http"):
         return False
     
-    # Delegate to shared probe helper (unified with verify-links)
-    from jobradar.link_probe import probe_url_for_notify
-    
-    return probe_url_for_notify(url, timeout=timeout)
+    try:
+        # Try HEAD first (faster)
+        resp = httpx.head(url, timeout=timeout, follow_redirects=True)
+        if 200 <= resp.status_code < 300:
+            return True
+        if resp.status_code == 403:
+            # Accept 403 if URL looks job-related
+            url_lower = url.lower()
+            if any(word in url_lower for word in ("job", "career", "position", "apply", "intern")):
+                return True
+        if resp.status_code == 404:
+            return False
+        
+        # Some servers don't support HEAD (405, 501) - try GET
+        if resp.status_code in (405, 501):
+            resp = httpx.get(url, timeout=timeout, follow_redirects=True)
+            if 200 <= resp.status_code < 300:
+                return True
+            if resp.status_code == 403:
+                url_lower = url.lower()
+                if any(word in url_lower for word in ("job", "career", "position", "apply", "intern")):
+                    return True
+        
+        return False
+    except Exception as exc:
+        log.debug("probe_url failed for %s: %s", url, exc)
+        return False
 
 
 def job_notify_block_reason(job: JobRecord) -> str | None:
