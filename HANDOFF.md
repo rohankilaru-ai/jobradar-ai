@@ -4,9 +4,9 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #22 — Default Unlimited Alert Cap — IN PROGRESS
+## Latest: Overnight #22 — Default Unlimited Alert Cap (PR #40) — SHIPPED
 
-**Branch:** `cursor/overnight-22-unlimited-alert-cap-dacc` → draft PR pending
+**Branch:** `cursor/overnight-22-unlimited-alert-cap-dacc` → draft PR #40 open
 
 **Problem:** With `JOBRADAR_MAX_ALERTS_PER_SCAN` defaulting to 15, alert #16+ still landed in SQLite but never hit Discord — easy to think listings were "lost." Standing product priority: notification speed; false positives OK; missed jobs not OK.
 
@@ -20,15 +20,13 @@
 - **Probe/pause defer:** Preserved overnight #21 `probe_deferred` and `alerts_paused` defer semantics
 - **Tests:** Updated 3 tests to expect 0 as default; all 514 tests pass ✅
 - **Documentation:** Updated `CLOUD_SCAN.md` and `LIVE_SCAN_VALIDATION.md` to reflect unlimited-by-default with optional cap
+- **PR:** Draft PR #40 created: https://github.com/rohankilaru-ai/jobradar-ai/pull/40
 
 **Impact:**
 - No more artificial per-scan alert ceiling by default — all qualifying jobs alert
 - Users won't miss alert #16+ due to default cap
 - Optional cap still available via env var for spam control if needed
 - Deferred jobs (cap, pause, probe) can still retry on later scans
-
-**Remaining:**
-- Open draft PR after verifying all tests green
 
 ## Latest prior: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
 
