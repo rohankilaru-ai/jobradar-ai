@@ -4,6 +4,24 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
+## Latest: Overnight #31 — Merge/Stack Hygiene (PRs #40-#48) — COMPLETE
+
+**Goal:** Merge/stack hygiene for open overnight draft PRs #40-#48 stacked on main. No new feature work.
+
+**Completed:**
+- **9 PRs merged** in dependency order: #40 (unlimited alert cap), #41 (speedyapply INTERN_INTL), #42 (AI sources), #43 (per-source summary), #44 (scout retry), #45 (14-day notify window), #46 (parser harden), #47 (product completion tests), #48 (live scan validation refresh)
+- **All PRs marked ready** for review (converted from draft)
+- **Rebased and resolved conflicts** for each PR onto updated main tip
+- **CI green** for all merged PRs before merge
+- **Test suite:** All 581 tests passing ✅
+- **Main tip:** 35971fe (was 0dc496f before overnight #31)
+
+**Remaining open PRs:**
+- **PR #22** ("Remove Discord per-scan alert cap") — superseded by PR #40 (unlimited alert cap default). Could not close due to GitHub permissions (GraphQL: Resource not accessible by integration). **Action for user:** Close #22 as superseded.
+- **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
+
+**Next:** Stack is clean. All overnight #22-#30 work landed. Next discrete gap: classify exclude-list tuning or other product enhancements (not Gmail).
+
 <<<<<<< HEAD
 =======
 ## Latest: Overnight #30 — Live Scan Validation Docs/Harness Refresh (PR TBD)
