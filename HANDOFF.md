@@ -22,11 +22,9 @@
 
 **Next:** Stack is clean. All overnight #22-#30 work landed. Next discrete gap: classify exclude-list tuning or other product enhancements (not Gmail).
 
-<<<<<<< HEAD
-=======
-## Latest: Overnight #30 — Live Scan Validation Docs/Harness Refresh (PR TBD)
+## Latest prior: Overnight #30 — Live Scan Validation Docs/Harness Refresh (PR #48) — LANDED
 
-**Branch:** `cursor/overnight-30-live-scan-validation-refresh-0b0b`
+**Branch:** `cursor/overnight-30-live-scan-validation-refresh-0b0b` → squash-merged to main (35971fe)
 
 **Goal:** Refresh live scan validation docs + harness to match current main after overnight #21 (transient probe-fail defer) and PR #39 (alert pause/cap defer) shipped.
 
@@ -52,36 +50,9 @@
 
 **Out of scope:** Merging open PRs #40–#47, changing defaults, parser HTML harden, product-completion test content, live alert sends.
 
-**Next suggested:** Merge/stack hygiene for open overnight drafts #40–#47 (parser improvements, alert tuning). Classify exclude-list tuning if repeated false positives emerge.
+**Status:** Squash-merged to main as part of overnight #31 stack hygiene.
 
-## Latest prior: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
->>>>>>> 2481771 (overnight #30: refresh live scan validation docs/harness for main)
-
-**Branch:** `cursor/overnight-25-per-source-summary-5296` → draft PR pending
-    10|
-**Problem:** After overnight #22–#24 (alert-cap default + speedyapply SWE INTERN_INTL + AI College sources), main already soft-fails per source in scout.py but operators cannot see which sources failed or returned 304 in a normal `scan --once` / health path. Scan observability gaps made overnight/cloud-scan failures invisible without reading logs.
-
-**Fixed / shipped:**
-- **Per-source breakdown in scan output**: After `scout_all`, CLI now shows compact per-source summary with name, job count (or 0), and status: `ok` / `not_modified` (304) / `error` (with error detail)
-- **Aggregate counts**: Added `sources_ok`, `sources_not_modified`, `sources_failed` to `PipelineStats` and `RefreshStats`
-- **Soft-fail preserved**: One bad source never aborts the rest (already true — kept working and added regression test)
-- **Implementation**:
-  - `pipeline.py`: New `SourceSummary` dataclass tracks per-source status/jobs/error
-    20|  - `PipelineStats` and `RefreshStats`: Added `sources: list[SourceSummary]` and aggregate counts
-  - `run_scan()` and `refresh_jobs()`: Populate source summaries for each result
-  - `cli.py`: Display per-source breakdown in `cmd_scan()` and `cmd_refresh_jobs()`
-- **Tests**: 8 new focused tests in `tests/test_per_source_summary.py` covering mixed ok/304/error sources, soft-fail preservation, and aggregate counts
-- All 522 tests passing ✅
-
-**Impact:**
-- Operators can immediately see which sources failed, returned 304, or succeeded in scan output
-- No need to grep logs to diagnose overnight scan issues
-    30|- Aggregate counts provide quick health check (e.g., "4 ok, 2 not_modified, 1 failed")
-- Soft-fail behavior proven with regression test (one bad source doesn't stop others)
-
-**Status:** Draft PR ready for review. All tests green. HANDOFF updated.
-
-## Latest prior: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
+## Latest prior: Overnight #22 — Default Unlimited Alert Cap (PR #40) — LANDED
 
 **Branch:** `cursor/overnight-22-unlimited-alert-cap-dacc` → squash-merged to main (c6b3761)
 
@@ -104,7 +75,9 @@
 - Optional cap still available via env var for spam control if needed
 - Deferred jobs (cap, pause, probe) can still retry on later scans
 
-## Latest prior: Overnight #23 — Add speedyapply INTERN_INTL source (PR #41) — SHIPPED
+**Status:** Squash-merged to main as part of overnight #31 stack hygiene.
+
+## Latest prior: Overnight #23 — Add speedyapply INTERN_INTL source (PR #41) — LANDED
 
 **Branch:** `cursor/overnight-23-speedyapply-intl-9967` → squash-merged to main (f3a2dad)
 
@@ -122,9 +95,9 @@
 - Updated PROJECT_SPEC.md Sources section (removed "later" notation)
 - New-grad sources (NEW_GRAD_INTL.md, NEW_GRAD_USA.md) remain disabled (Rohan targets internships only)
 
-## Latest prior: Overnight #24 — speedyapply AI College Jobs Sources (PR #42)
+## Latest prior: Overnight #24 — speedyapply AI College Jobs Sources (PR #42) — LANDED
 
-**Branch:** `cursor/overnight-24-ai-sources-d634`
+**Branch:** `cursor/overnight-24-ai-sources-d634` → squash-merged to main (e0b7e26)
 
 **Goal:** Complete final PROJECT_SPEC Sources item: add speedyapply AI sibling repo internship sources (README.md + INTERN_INTL.md only; exclude new-grad files).
 
@@ -142,10 +115,25 @@
 - Mirrors overnight #23 pattern for speedyapply-swe sources
 - All sources remain internship-focused; pittcsc ban intact
 
-**Testing:** Ready to merge (rebased onto PRs #40 and #41)
-
+**Status:** Squash-merged to main as part of overnight #31 stack hygiene.
 
 ## Latest prior: Overnight #21 — Transient Probe-Fail Defer (PR #38) — LANDED
+
+**Branch:** `cursor/overnight-21-probe-defer-0a52` → squash-merged to main (62e7e56)
+
+**Problem:** Transient link-probe failures (timeout, 5xx, connection errors) were permanently silencing jobs by marking `was_notified`. Later scans could not re-alert even after URLs recovered.
+
+**Fixed / shipped:**
+- **Transient vs hard probe failures**: Distinguish between transient (timeout, 5xx, 429, connection error) and hard (404, empty URL, example.com) failures
+- **Transient handling**: Write JSONL for persistence, skip live alerts, do NOT mark `was_notified` → allows retry when URL recovers
+- **Hard failures**: Permanent blocks (skip live alerts, existing behavior preserved)
+- **Successful alerts**: Mark `was_notified`, prevent double-alert (unchanged)
+- **Stats tracking**: Pipeline now tracks `probe_deferred` stat, included in scan output
+- **Merged with pause/cap defer**: Works alongside PR #39's `record_as_notified` parameter and priority-first ordering
+- **Implementation**:
+  - `link_probe.py`: Update `probe_url()` to return `"good"` (2xx/3xx), `"bad"` (4xx except 429), or `"error"` (5xx, 429, timeout, connection errors)
+  - `notify.py`: Add `has_transient_probe_failure()`, update `job_notify_block_reason()`, handle transient failures in `Notifier.notify()` (integrates with `record_as_notified` param)
+  - `pipeline.py`: Add `probe_deferred` stat alongside `alerts_paused` and `cap_deferred`, preserve priority-first ordering
   - `cli.py`: Include `probe_deferred` in scan output
 - **Tests**: 13 new tests in `tests/test_probe_defer.py`
 - Rebased onto main after PR #39 merged (parser hardening + pause/cap defer)
@@ -155,7 +143,8 @@
 - Jobs with temporary probe failures can be re-alerted on next successful scan
 - Three deferral categories now tracked: `probe_deferred`, `alerts_paused`, `cap_deferred`
 - All 514 tests passing ✅
-- **Status:** Squash-merged to main (62e7e56) after clean rebase. No live Discord/ntfy/Telegram sends during merge.
+
+**Status:** Squash-merged to main (62e7e56) after clean rebase. No live Discord/ntfy/Telegram sends during merge.
 
 ## Latest prior: Fix failing pytest on main (PR #39)
 
