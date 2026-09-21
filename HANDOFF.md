@@ -29,7 +29,8 @@
 - Transient network issues no longer permanently silence jobs
 - Jobs with temporary probe failures can be re-alerted on next successful scan
 - Three deferral categories now tracked: `probe_deferred`, `alerts_paused`, `cap_deferred`
-- All pytest passing ✅
+- All 514 tests passing ✅
+- **Status:** Squash-merged to main (62e7e56) after clean rebase. No live Discord/ntfy/Telegram sends during merge.
 
 ## Latest prior: Fix failing pytest on main (PR #39)
 
