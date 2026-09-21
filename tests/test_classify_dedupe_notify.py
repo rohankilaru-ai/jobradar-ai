@@ -462,7 +462,7 @@ def test_within_notify_window_3_days():
     )
     assert within_notify_window(fresh, now=now) is True
     assert within_notify_window(stale, now=now) is False
-    # boundary: exactly 3 days still notifies
+    # 3 days old is well within default 14-day window
     edge = JobRecord(
         company="C",
         title="SWE Intern",
