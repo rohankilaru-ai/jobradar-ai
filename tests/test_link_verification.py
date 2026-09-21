@@ -139,12 +139,13 @@ def test_job_notify_block_reason_example_urls():
 
 
 def test_job_notify_block_reason_probe_failure(monkeypatch):
-    """Verify jobs with failed URL probes are blocked."""
+    """Verify jobs with hard URL probe failures (404) are blocked."""
     # Enable link probe for this test
     monkeypatch.setenv("JOBRADAR_LINK_PROBE", "1")
     
-    with patch("jobradar.notify.probe_url") as mock_probe:
-        mock_probe.return_value = False
+    with patch("jobradar.notify.detailed_probe_url") as mock_probe:
+        # Return "bad" for hard failure (404, etc.)
+        mock_probe.return_value = "bad"
         
         job = JobRecord(
             company="DeadSite",

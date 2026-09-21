@@ -25,6 +25,7 @@ class PipelineStats:
     new: int = 0
     notified: int = 0
     alerted: int = 0
+    probe_deferred: int = 0  # Transient probe failures (deferred, not permanently blocked)
     alert_cap_hit: bool = False
     alerts_paused: int = 0
     cap_deferred: int = 0
@@ -126,7 +127,7 @@ def run_scan(
         )
 
     # Check if alerts are globally paused
-    from jobradar.notify import alerts_enabled
+    from jobradar.notify import alerts_enabled, has_transient_probe_failure
     alerts_on = alerts_enabled()
     
     # Process all alertable jobs
@@ -137,11 +138,20 @@ def run_scan(
         is_within_cap = job in jobs_to_alert
         should_alert = is_within_cap and alerts_on
         
+        # Check for transient probe failure (affects both alert and silent paths)
+        is_probe_deferred = has_transient_probe_failure(job)
+        
         # Track deferral reasons
         record_notification = True
         defer_reason = None
         
-        if not alerts_on:
+        if is_probe_deferred:
+            # Probe transient failure: don't record notification, allow retry later
+            record_notification = False
+            defer_reason = "probe_deferred"
+            stats.probe_deferred += 1
+            should_alert = False  # Don't live alert on transient failures
+        elif not alerts_on:
             # Alerts paused: don't record notification, allow retry later
             record_notification = False
             defer_reason = "alerts_paused"

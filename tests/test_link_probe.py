@@ -45,7 +45,8 @@ def test_probe_url_bad_404(respx_mock):
 
 def test_probe_url_bad_500(respx_mock):
     respx_mock.head("https://example.com/job").mock(return_value=httpx.Response(500))
-    assert probe_url("https://example.com/job") == "bad"
+    # 5xx is now treated as transient error, not permanent bad
+    assert probe_url("https://example.com/job") == "error"
 
 
 def test_probe_url_timeout(respx_mock):

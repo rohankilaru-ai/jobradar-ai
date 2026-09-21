@@ -19,10 +19,11 @@ def probe_url(url: str, timeout: float = 8.0) -> ProbeResult:
     """Probe a URL via HEAD or GET. Returns 'good', 'bad', or 'error'.
     
     - 'good': 2xx/3xx response
-    - 'bad': 4xx/5xx response
-    - 'error': network/timeout failure
+    - 'bad': 4xx response (except 429)
+    - 'error': 5xx, 429 (rate limit), network/timeout failure
     
-    Tries HEAD first (faster), falls back to GET if HEAD fails (some servers don't support HEAD).
+    Treating 5xx and 429 as 'error' (transient) allows retry; 4xx (except 429)
+    are permanent failures.
     """
     url_clean = (url or "").strip()
     if not url_clean:
@@ -37,18 +38,10 @@ def probe_url(url: str, timeout: float = 8.0) -> ProbeResult:
         resp = httpx.head(url_clean, timeout=timeout, follow_redirects=True)
         if 200 <= resp.status_code < 400:
             return "good"
-        
-        # Some servers don't support HEAD (405, 501) - try GET
-        if resp.status_code in (405, 501):
-            log.debug("HEAD not supported for %s, trying GET", url_clean)
-            try:
-                resp = httpx.get(url_clean, timeout=timeout, follow_redirects=True)
-                if 200 <= resp.status_code < 400:
-                    return "good"
-            except Exception as exc:
-                log.debug("GET fallback failed for %s: %s", url_clean, exc)
-                return "error"
-        
+        # 5xx and 429 are transient (may recover)
+        if resp.status_code >= 500 or resp.status_code == 429:
+            return "error"
+        # 4xx (except 429) are permanent failures
         return "bad"
     except httpx.TimeoutException:
         log.debug("probe timeout: %s", url_clean)
