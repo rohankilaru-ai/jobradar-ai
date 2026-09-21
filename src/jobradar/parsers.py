@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 import re
 from html.parser import HTMLParser
 from typing import Any, Iterable
 
 from jobradar.models import JobRecord
+
+log = logging.getLogger("jobradar.parsers")
 
 _HREF = re.compile(r'href=["\']([^"\']+)["\']', re.I)
 _TAG = re.compile(r"<[^>]+>")
@@ -56,9 +59,25 @@ def age_token_to_posted_at(token: str, *, now: datetime | None = None) -> str:
     return dt.date().isoformat()
 
 def parse_aprameyak_json(raw: str | bytes, source: str = "aprameyak-2027") -> list[JobRecord]:
-    data = json.loads(raw)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        preview = (raw[:100] if isinstance(raw, str) else raw[:100].decode("utf-8", errors="ignore")) if raw else ""
+        log.error(
+            "JSON decode error in %s at line %d col %d: %s. Preview: %r",
+            source, e.lineno, e.colno, e.msg, preview
+        )
+        return []
+    except (UnicodeDecodeError, ValueError) as e:
+        preview = (raw[:100] if isinstance(raw, str) else raw[:100].decode("utf-8", errors="ignore")) if raw else ""
+        log.error(
+            "Parse error in %s: %s. Preview: %r",
+            source, str(e), preview
+        )
+        return []
     if not isinstance(data, list):
-        raise ValueError("aprameyak listings.json must be a list")
+        log.warning("%s: expected list, got %s. Skipping.", source, type(data).__name__)
+        return []
     out: list[JobRecord] = []
     for item in data:
         if not isinstance(item, dict):
@@ -84,10 +103,26 @@ def parse_aprameyak_json(raw: str | bytes, source: str = "aprameyak-2027") -> li
 
 
 def parse_dreamwork_json(raw: str | bytes, source: str = "dreamwork-2027") -> list[JobRecord]:
-    data = json.loads(raw)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        preview = (raw[:100] if isinstance(raw, str) else raw[:100].decode("utf-8", errors="ignore")) if raw else ""
+        log.error(
+            "JSON decode error in %s at line %d col %d: %s. Preview: %r",
+            source, e.lineno, e.colno, e.msg, preview
+        )
+        return []
+    except (UnicodeDecodeError, ValueError) as e:
+        preview = (raw[:100] if isinstance(raw, str) else raw[:100].decode("utf-8", errors="ignore")) if raw else ""
+        log.error(
+            "Parse error in %s: %s. Preview: %r",
+            source, str(e), preview
+        )
+        return []
     listings = data.get("listings") if isinstance(data, dict) else data
     if not isinstance(listings, list):
-        raise ValueError("dreamwork payload missing listings list")
+        log.warning("%s: expected listings list, got %s. Skipping.", source, type(listings).__name__)
+        return []
     out: list[JobRecord] = []
     for item in listings:
         if not isinstance(item, dict):
@@ -112,10 +147,26 @@ def parse_dreamwork_json(raw: str | bytes, source: str = "dreamwork-2027") -> li
 
 
 def parse_applyguy_json(raw: str | bytes, source: str = "applyguy-2027") -> list[JobRecord]:
-    data = json.loads(raw)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        preview = (raw[:100] if isinstance(raw, str) else raw[:100].decode("utf-8", errors="ignore")) if raw else ""
+        log.error(
+            "JSON decode error in %s at line %d col %d: %s. Preview: %r",
+            source, e.lineno, e.colno, e.msg, preview
+        )
+        return []
+    except (UnicodeDecodeError, ValueError) as e:
+        preview = (raw[:100] if isinstance(raw, str) else raw[:100].decode("utf-8", errors="ignore")) if raw else ""
+        log.error(
+            "Parse error in %s: %s. Preview: %r",
+            source, str(e), preview
+        )
+        return []
     jobs = data.get("jobs") if isinstance(data, dict) else data
     if not isinstance(jobs, list):
-        raise ValueError("applyguy payload missing jobs list")
+        log.warning("%s: expected jobs list, got %s. Skipping.", source, type(jobs).__name__)
+        return []
     out: list[JobRecord] = []
     for item in jobs:
         if not isinstance(item, dict):
