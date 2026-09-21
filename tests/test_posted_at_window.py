@@ -93,7 +93,8 @@ def test_missing_posted_at_allowed_when_require_off(monkeypatch):
     assert within_notify_window(job) is True
 
 
-def test_four_day_old_posted_outside_three_day_window():
+def test_four_day_old_posted_inside_fourteen_day_window():
+    """4-day-old job should be inside default 14-day window."""
     posted = (datetime.now(timezone.utc) - timedelta(days=4)).date().isoformat()
     job = JobRecord(
         company="Acme",
@@ -102,4 +103,84 @@ def test_four_day_old_posted_outside_three_day_window():
         posted_at=posted,
         first_seen_at=datetime.now(timezone.utc).isoformat(),
     )
+    assert within_notify_window(job) is True
+
+
+def test_thirteen_day_old_posted_inside_fourteen_day_window():
+    """13-day-old job should be inside default 14-day window."""
+    posted = (datetime.now(timezone.utc) - timedelta(days=13)).date().isoformat()
+    job = JobRecord(
+        company="Acme",
+        title="SWE Intern",
+        url="https://boards.greenhouse.io/acme/jobs/10",
+        posted_at=posted,
+        first_seen_at=datetime.now(timezone.utc).isoformat(),
+    )
+    assert within_notify_window(job) is True
+
+
+def test_fifteen_day_old_posted_outside_fourteen_day_window():
+    """15-day-old job should be outside default 14-day window."""
+    posted = (datetime.now(timezone.utc) - timedelta(days=15)).date().isoformat()
+    job = JobRecord(
+        company="Acme",
+        title="SWE Intern",
+        url="https://boards.greenhouse.io/acme/jobs/11",
+        posted_at=posted,
+        first_seen_at=datetime.now(timezone.utc).isoformat(),
+    )
     assert within_notify_window(job) is False
+
+
+def test_twenty_one_day_old_posted_outside_fourteen_day_window():
+    """21-day-old job should be outside default 14-day window."""
+    posted = (datetime.now(timezone.utc) - timedelta(days=21)).date().isoformat()
+    job = JobRecord(
+        company="Acme",
+        title="SWE Intern",
+        url="https://boards.greenhouse.io/acme/jobs/12",
+        posted_at=posted,
+        first_seen_at=datetime.now(timezone.utc).isoformat(),
+    )
+    assert within_notify_window(job) is False
+
+
+def test_custom_window_via_env_override(monkeypatch):
+    """Verify JOBRADAR_NOTIFY_WINDOW_DAYS env override works."""
+    monkeypatch.setenv("JOBRADAR_NOTIFY_WINDOW_DAYS", "7")
+    
+    # 5 days old - inside 7-day window
+    posted_5d = (datetime.now(timezone.utc) - timedelta(days=5)).date().isoformat()
+    job_5d = JobRecord(
+        company="Acme",
+        title="SWE Intern",
+        url="https://boards.greenhouse.io/acme/jobs/13",
+        posted_at=posted_5d,
+    )
+    assert within_notify_window(job_5d) is True
+    
+    # 8 days old - outside 7-day window
+    posted_8d = (datetime.now(timezone.utc) - timedelta(days=8)).date().isoformat()
+    job_8d = JobRecord(
+        company="Acme",
+        title="SWE Intern",
+        url="https://boards.greenhouse.io/acme/jobs/14",
+        posted_at=posted_8d,
+    )
+    assert within_notify_window(job_8d) is False
+
+
+def test_negative_window_allows_all_jobs(monkeypatch):
+    """Verify JOBRADAR_NOTIFY_WINDOW_DAYS=-1 disables the window (allows all jobs)."""
+    monkeypatch.setenv("JOBRADAR_NOTIFY_WINDOW_DAYS", "-1")
+    monkeypatch.setenv("JOBRADAR_REQUIRE_POSTED_AT", "0")
+    
+    # Very old job (6 months) should be allowed with negative window
+    posted = (datetime.now(timezone.utc) - timedelta(days=180)).date().isoformat()
+    job = JobRecord(
+        company="Acme",
+        title="SWE Intern",
+        url="https://boards.greenhouse.io/acme/jobs/15",
+        posted_at=posted,
+    )
+    assert within_notify_window(job) is True

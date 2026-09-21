@@ -120,9 +120,9 @@ def test_notify_window_old_job():
 
 
 def test_notify_window_edge():
-    """Job near the 3-day notify-window boundary should be within window."""
+    """Job near the 14-day notify-window boundary should be within window."""
     now = datetime.now(timezone.utc)
-    edge = now - timedelta(days=3, hours=-1)  # just under 3 days
+    edge = now - timedelta(days=13, hours=23)  # just under 14 days
     job = JobRecord(
         company="Stripe",
         title="SWE Intern",

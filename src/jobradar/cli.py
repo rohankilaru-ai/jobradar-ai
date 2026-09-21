@@ -534,7 +534,7 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
     now = datetime.now(timezone.utc)
     notify_tests = [
         (JobRecord(company="A", title="X", url="https://a.com/1", posted_at=(now - timedelta(days=1)).date().isoformat()), True, "posted 1 day ago"),
-        (JobRecord(company="B", title="Y", url="https://b.com/2", posted_at=(now - timedelta(days=10)).date().isoformat()), False, "posted 10 days ago (outside 3-day window)"),
+        (JobRecord(company="B", title="Y", url="https://b.com/2", posted_at=(now - timedelta(days=20)).date().isoformat()), False, "posted 20 days ago (outside 14-day window)"),
         (JobRecord(company="C", title="Z", url="https://c.com/3"), False, "no posted_at (REQUIRE_POSTED_AT=1 default)"),
     ]
     notify_passed = 0
