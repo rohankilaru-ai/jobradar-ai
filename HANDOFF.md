@@ -4,7 +4,61 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #34 — Merge/Stack Hygiene (PRs #50, #51) — COMPLETE
+## Latest: Overnight #36 — Merge/Stack Hygiene (PR #53) — COMPLETE
+
+**Goal:** Merge/stack hygiene for overnight #35 draft PR #53 onto main. No new feature work. Mirror overnight #31/#34 pattern.
+
+**Completed:**
+- **PR #53 merged** ("Overnight #35: Audit and normalize notify window docs drift")
+- **PR marked ready** for review (converted from draft)
+- **Resolved merge conflict** in HANDOFF.md (merged main into PR branch, resolved cleanly)
+- **CI green** before merge (test check SUCCESS)
+- **Test suite:** All 622 tests passing ✅
+- **Main tip:** 5cdf6d0 (was 8a84e86 before overnight #36)
+
+**PR merged:**
+- **PR #53** ("Overnight #35: Audit and normalize notify window docs drift (3-day → 14-day)") — Fixed docs/workflows to match canonical 14-day default, added 4 drift-lock tests, 622 tests passing after merge
+
+**Remaining open PRs:**
+- **PR #22** ("Remove Discord per-scan alert cap") — superseded by PR #40 (unlimited alert cap default). Leave for user to close.
+- **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
+
+**Next suggested:** Scout health age/staleness surfacing — Add observability for source health age (time since last successful fetch) and staleness detection (sources not updated for N days) to `health` CLI output and potentially alert on stale sources. Would help identify sources that may need attention or removal before they silently fail. Non-Gmail, builds on overnight #33 scout_health foundation.
+
+## Latest prior: Overnight #35 — Notify Window Docs Drift Audit (PR #53) — LANDED
+
+**Branch:** `cursor/overnight-35-notify-window-docs-drift-6acf` → squash-merged to main (5cdf6d0)
+
+**Goal:** Audit and normalize notify window default documentation drift (3-day vs 14-day inconsistencies).
+
+**Context:** Overnight #27 shipped 14-day notify window in PR #45, but HANDOFF and several docs still incorrectly stated 3-day default. Audit found code default is 14 days (`NOTIFY_WINDOW_DAYS = 14` in `notify.py`), but docs/workflows were inconsistent.
+
+**Changes:**
+- **Fixed GitHub Actions workflow** (`.github/workflows/cloud-scan.yml`):
+  - Line 79: `JOBRADAR_NOTIFY_WINDOW_DAYS` now defaults to `'14'` (was `'3'`)
+  - Line 98: Bash fallback now defaults to `14` (was `3`)
+  - **Impact:** Production cloud-scan now correctly defaults to 14-day window
+- **Fixed `docs/LIVE_SCAN_VALIDATION.md`:**
+  - Gate 7 description: "default 14 days" (was "default 3 days")
+  - Window tuning: "default 14" (was "default 3")
+  - Env var section: Updated examples to show 14-day default first with corrected list order
+- **Fixed `docs/CLOUD_SCAN.md`:**
+  - Table: "14‑day window" and "within 14 days" (was "3‑day" and "within 3 days")
+  - Stricter freshness: "default `14`" (was "default `3`")
+  - Description: "within 14 days" (was "within 3 days")
+- **Fixed test comment** in `tests/test_overnight_29_product_completion.py`:
+  - Line 10: "14-day notify window behavior (default since PR #45)" (was "14-day (actually 3-day default)")
+- **Added drift-lock test** (`tests/test_notify_window_default.py`):
+  - `test_notify_window_constant_is_14_days()`: Locks `NOTIFY_WINDOW_DAYS == 14` with assertion message referencing all docs to update if changed
+  - `test_default_behavior_uses_14_days()`: Verifies 13-day job is inside window, 15-day job is outside (no env override)
+  - `test_env_override_still_works()`: Verifies `JOBRADAR_NOTIFY_WINDOW_DAYS` env var override works
+  - `test_boundary_case_exactly_14_days()`: Tests strict boundary (exactly 14 days is outside)
+
+**Agreed canonical default:** 14 days (matches code since PR #45, now docs are consistent).
+
+**Test status:** All 622 tests passing ✅
+
+## Latest prior: Overnight #34 — Merge/Stack Hygiene (PRs #50, #51) — COMPLETE
 
 **Goal:** Merge/stack hygiene for open overnight draft PRs #50 and #51 onto main. No new feature work. Mirror overnight #31 pattern.
 
