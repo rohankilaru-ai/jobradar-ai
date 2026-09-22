@@ -4,9 +4,32 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #33 — Scout/Health Observability (PR #51) — COMPLETE
+## Latest: Overnight #34 — Merge/Stack Hygiene (PRs #50, #51) — COMPLETE
 
-**Branch:** `cursor/overnight-33-scout-health-37dc` → draft PR #51
+**Goal:** Merge/stack hygiene for open overnight draft PRs #50 and #51 onto main. No new feature work. Mirror overnight #31 pattern.
+
+**Completed:**
+- **2 PRs merged** in order: #50 (classify exclude-list tuning), #51 (scout/health observability)
+- **All PRs marked ready** for review (converted from draft)
+- **Rebased and resolved conflicts** for each PR onto updated main tip (1439d2e → 3da2237 → 1c105a2)
+- **HANDOFF.md conflicts resolved** carefully for both PRs (no conflict markers, coherent history)
+- **CI green** for all merged PRs before merge
+- **Test suite:** All 618 tests passing ✅
+- **Main tip:** 1c105a2 (was 1439d2e before overnight #34)
+
+**PRs merged:**
+- **PR #50** ("Overnight #32: Tune classify exclude-list") — 60+ new exclude phrases, 28 new tests, 604 tests passing after merge
+- **PR #51** ("Overnight #33: Scout/health observability") — scout_health table, enhanced health CLI, 14 new tests, 618 tests passing after merge
+
+**Remaining open PRs:**
+- **PR #22** ("Remove Discord per-scan alert cap") — superseded by PR #40 (unlimited alert cap default). Leave for user to close.
+- **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
+
+**Next suggested:** Notify window default vs docs drift — HANDOFF.md and docs still mention both 3-day and 14-day notify windows inconsistently in different sections (overnight #30 noted 3-day as confirmed default, but overnight #15 and other sections reference 14-day). Audit and normalize to single source of truth. Non-Gmail, non-feature work, documentation consistency improvement.
+
+## Latest prior: Overnight #33 — Scout/Health Observability (PR #51) — LANDED
+
+**Branch:** `cursor/overnight-33-scout-health-37dc` → squash-merged to main (1c105a2)
 
 **Goal:** Add scout/health observability so stale/broken sources are visible without manual spot-checks. Build on overnight #25 per-source summary.
 
