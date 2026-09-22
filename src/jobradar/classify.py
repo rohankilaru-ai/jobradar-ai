@@ -171,6 +171,8 @@ def should_keep(job: JobRecord) -> bool:
             " ml ", " ai ", "artificial intelligence", "devops", "backend", "frontend",
             "full stack", "fullstack", "platform engineer", "systems engineer",
             "quant", "infrastructure engineer",
+            # Borderline technical role variants (overnight #39 classification recall)
+            "technical account", "technical product manager",
         )
         if any(sig in text for sig in strong_signals):
             return True
