@@ -11,6 +11,9 @@ from typing import Iterator
 
 from jobradar.models import JobRecord
 
+# Scout health staleness threshold (days) - sources older than this are considered stale
+SCOUT_HEALTH_STALENESS_THRESHOLD_DAYS = 3
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
   canonical_key TEXT PRIMARY KEY,
@@ -528,3 +531,84 @@ class Database:
                 (source_name, limit),
             ).fetchall()
             return [dict(row) for row in rows]
+
+    def get_scout_health_with_age(
+        self,
+        staleness_threshold_days: int = SCOUT_HEALTH_STALENESS_THRESHOLD_DAYS,
+    ) -> dict:
+        """Get health info with age/staleness analysis for each source.
+        
+        Returns:
+            dict with keys:
+                - sources: list of dicts with source_name, status, fetched_at,
+                          age_seconds, age_human, is_stale, is_fresh
+                - summary: dict with total, fresh, stale, never_fetched counts
+        """
+        from datetime import datetime, timedelta, timezone
+        
+        now = datetime.now(timezone.utc)
+        threshold_seconds = staleness_threshold_days * 86400
+        
+        with self.connection() as conn:
+            # Get last successful fetch (ok or not_modified) for each source
+            rows = conn.execute(
+                """
+                SELECT source_name, status, fetched_at
+                FROM scout_health
+                WHERE status IN ('ok', 'not_modified')
+                  AND (source_name, fetched_at) IN (
+                    SELECT source_name, MAX(fetched_at)
+                    FROM scout_health
+                    WHERE status IN ('ok', 'not_modified')
+                    GROUP BY source_name
+                  )
+                ORDER BY source_name
+                """
+            ).fetchall()
+            
+            sources_info = []
+            for row in rows:
+                fetched_at_str = row["fetched_at"]
+                fetched_at = datetime.fromisoformat(fetched_at_str.replace("Z", "+00:00"))
+                age_seconds = (now - fetched_at).total_seconds()
+                is_stale = age_seconds > threshold_seconds
+                
+                sources_info.append({
+                    "source_name": row["source_name"],
+                    "status": row["status"],
+                    "fetched_at": fetched_at_str,
+                    "age_seconds": age_seconds,
+                    "age_human": _format_age(age_seconds),
+                    "is_stale": is_stale,
+                    "is_fresh": not is_stale,
+                })
+            
+            fresh_count = sum(1 for s in sources_info if s["is_fresh"])
+            stale_count = sum(1 for s in sources_info if s["is_stale"])
+            
+            return {
+                "sources": sources_info,
+                "summary": {
+                    "total": len(sources_info),
+                    "fresh": fresh_count,
+                    "stale": stale_count,
+                    "never_fetched": 0,  # Filled in by caller based on SOURCES catalog
+                },
+            }
+
+
+def _format_age(seconds: float) -> str:
+    """Format age in seconds to human-readable string."""
+    if seconds < 60:
+        return f"{int(seconds)}s"
+    elif seconds < 3600:
+        return f"{int(seconds / 60)}m"
+    elif seconds < 86400:
+        hours = int(seconds / 3600)
+        return f"{hours}h"
+    else:
+        days = int(seconds / 86400)
+        hours = int((seconds % 86400) / 3600)
+        if hours > 0:
+            return f"{days}d {hours}h"
+        return f"{days}d"

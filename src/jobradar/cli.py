@@ -81,10 +81,13 @@ def cmd_health(_: argparse.Namespace) -> int:
     max_alerts = max_alerts_per_scan()
     print(f"  max alerts/scan: {max_alerts if max_alerts > 0 else 'unlimited'}")
     
-    # Scout health (overnight #33)
+    # Scout health (overnight #33 + #37 age/staleness)
+    from jobradar.db import SCOUT_HEALTH_STALENESS_THRESHOLD_DAYS
     from jobradar.sources import SOURCES
+    
     print(f"\nScout health:")
     print(f"  configured sources: {len(SOURCES)}")
+    print(f"  staleness threshold: {SCOUT_HEALTH_STALENESS_THRESHOLD_DAYS} days")
     
     scout_health = db.get_scout_health_latest()
     if not scout_health:
@@ -96,10 +99,43 @@ def cmd_health(_: argparse.Namespace) -> int:
         
         print(f"  last scan: ok={ok_count} cached={cached_count} error={error_count}")
         
+        # Age/staleness analysis (overnight #37)
+        health_with_age = db.get_scout_health_with_age()
+        sources_info = health_with_age["sources"]
+        
+        # Calculate never_fetched count
+        fetched_sources = {s["source_name"] for s in sources_info}
+        all_sources = {src.name for src in SOURCES}
+        never_fetched = all_sources - fetched_sources
+        never_fetched_count = len(never_fetched)
+        
+        # Update summary
+        fresh_count = health_with_age["summary"]["fresh"]
+        stale_count = health_with_age["summary"]["stale"]
+        
+        print(f"\n  Age/staleness summary:")
+        print(f"    fresh: {fresh_count} (updated within {SCOUT_HEALTH_STALENESS_THRESHOLD_DAYS} days)")
+        print(f"    stale: {stale_count} (not updated for >{SCOUT_HEALTH_STALENESS_THRESHOLD_DAYS} days)")
+        if never_fetched_count > 0:
+            print(f"    never fetched: {never_fetched_count}")
+        
+        # Show stale sources if any
+        stale_sources = [s for s in sources_info if s["is_stale"]]
+        if stale_sources:
+            print(f"\n  Stale sources (age > {SCOUT_HEALTH_STALENESS_THRESHOLD_DAYS}d):")
+            for src in stale_sources:
+                print(f"    {src['source_name']}: {src['age_human']} old (last ok: {src['fetched_at'][:19]})")
+        
+        # Show never-fetched sources if any
+        if never_fetched_count > 0:
+            print(f"\n  Never fetched sources:")
+            for src_name in sorted(never_fetched):
+                print(f"    {src_name}")
+        
         # Show recent errors if any
         errors = [h for h in scout_health if h["status"] == "error"]
         if errors:
-            print("  recent failures:")
+            print("\n  Recent failures:")
             for err in errors[:5]:  # Show up to 5 most recent errors
                 detail = err.get("error_detail", "unknown error")
                 print(f"    {err['source_name']}: {detail}")
