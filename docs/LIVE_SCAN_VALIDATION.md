@@ -298,7 +298,7 @@ When URL is on a known recruiting platform (Greenhouse, Lever, Ashby, Workday, e
 
 ### Gate 7: Notify Window (Recency)
 
-**Block:** Jobs outside the notify window (default 3 days).
+**Block:** Jobs outside the notify window (default 14 days).
 
 **Why:** Avoid alerting about weeks-old postings that JobRadar just discovered.
 
@@ -313,7 +313,7 @@ When URL is on a known recruiting platform (Greenhouse, Lever, Ashby, Workday, e
 **Legacy fallback (`JOBRADAR_REQUIRE_POSTED_AT=0`):**
 - If `posted_at` is missing, fall back to `first_seen_at`
 
-**Window tuning:** Set `JOBRADAR_NOTIFY_WINDOW_DAYS=N` (default 3).
+**Window tuning:** Set `JOBRADAR_NOTIFY_WINDOW_DAYS=N` (default 14).
 
 **Handled:** `within_notify_window()` returns False → blocked.
 
@@ -429,13 +429,14 @@ If you're OK with "first seen today" semantics and want to catch all new discove
 
 ### `JOBRADAR_NOTIFY_WINDOW_DAYS`
 
-**Default:** `3`
+**Default:** `14`
 
 **Sets the recency window for notifications (days).**
 
 **Examples:**
-- `3` — Only notify about jobs posted in the last 3 days
+- `14` — Only notify about jobs posted in the last 14 days (default)
 - `7` — Notify about jobs posted in the last week
+- `3` — Only notify about jobs posted in the last 3 days
 - `-1` — Notify about all jobs (no recency filter)
 
 **Usage:**
