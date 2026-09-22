@@ -4,7 +4,38 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #31 — Merge/Stack Hygiene (PRs #40-#48) — COMPLETE
+## Latest: Overnight #32 — Classify Exclude-List Tuning (PR #50) — READY FOR REVIEW
+
+**Branch:** `cursor/overnight-32-classify-exclude-tune-b21d` → draft PR #50
+**Goal:** Tune classification exclude-list to reduce non-technical internship noise without dropping real SWE/ML/data/quant/infra roles.
+
+**Shipped:**
+- **60+ new exclude phrases** organized by category (precise multi-word phrases to avoid collisions):
+  - Healthcare operations: clinical ops, medical records, health services
+  - Finance operations: treasury, finance ops, investment/portfolio analyst, actuary
+  - Compliance/risk/governance: compliance analyst, regulatory affairs, risk management, policy analyst
+  - HR operations: talent acquisition, people ops, compensation, benefits
+  - Sales/revenue ops: inside sales, revenue ops, demand gen, field/event marketing
+  - Digital marketing: content, email, influencer, affiliate, channel marketing
+  - Product management (non-technical): product manager/operations/strategy without engineering context
+  - Business strategy/consulting: business analyst/strategy, corporate strategy, strategic planning
+  - Content/community: community/social media manager, content strategist, comms coordinator
+  - Operations/facilities: facilities, procurement, vendor management, supply chain analyst
+  - Customer support: customer support/experience, technical support, client services
+  - Education: curriculum, education program
+  - Design/creative: motion graphics, 3D artist, animator, creative intern
+  - Event planning: event/conference coordinator
+  - Sustainability (non-technical): sustainability, ESG, environmental intern
+- **Strong override preserved**: Technical titles with exclude keywords still kept (e.g., "Product Engineer", "Business Intelligence Engineer", "Marketing Data Scientist", "Operations Software Engineer")
+- **Recall-first maintained**: Unknown roles without clear signals default to keep (false positives OK, missed jobs NOT OK)
+- **28 new tests** (21 exclusion tests + 7 override edge case tests)
+- **All 537 tests passing** ✅
+
+**Impact:** More precise filtering of non-technical roles (product management, business ops, marketing, support, compliance) while maintaining strong recall for technical SWE/ML/data/quant/infra roles via override mechanism.
+
+**Next suggested:** Scout/health observability improvements — Add structured logging and metrics for scout source health (fetch success/fail rates, ETag hit rates, parse errors by source, job yield trends). Would help identify stale/broken sources proactively and improve confidence in scan completeness without manual spot-checks.
+
+## Latest prior: Overnight #31 — Merge/Stack Hygiene (PRs #40-#48) — COMPLETE
 
 **Goal:** Merge/stack hygiene for open overnight draft PRs #40-#48 stacked on main. No new feature work.
 
