@@ -4,39 +4,92 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #35 — Notify Window Docs Drift Audit (PR TBD) — IN REVIEW
+## Latest: Overnight #34 — Merge/Stack Hygiene (PRs #50, #51) — COMPLETE
 
-**Goal:** Audit and normalize notify window default documentation drift (3-day vs 14-day inconsistencies).
+**Goal:** Merge/stack hygiene for open overnight draft PRs #50 and #51 onto main. No new feature work. Mirror overnight #31 pattern.
 
-**Context:** Overnight #27 shipped 14-day notify window in PR #45, but HANDOFF and several docs still incorrectly stated 3-day default. Audit found code default is 14 days (`NOTIFY_WINDOW_DAYS = 14` in `notify.py`), but docs/workflows were inconsistent.
+**Completed:**
+- **2 PRs merged** in order: #50 (classify exclude-list tuning), #51 (scout/health observability)
+- **All PRs marked ready** for review (converted from draft)
+- **Rebased and resolved conflicts** for each PR onto updated main tip (1439d2e → 3da2237 → 1c105a2)
+- **HANDOFF.md conflicts resolved** carefully for both PRs (no conflict markers, coherent history)
+- **CI green** for all merged PRs before merge
+- **Test suite:** All 618 tests passing ✅
+- **Main tip:** 1c105a2 (was 1439d2e before overnight #34)
 
-**Changes:**
-- **Fixed HANDOFF.md:** Corrected line 36 to state "14 days per code and PR #45" (was incorrectly "confirmed 3 days, not 14")
-- **Fixed GitHub Actions workflow** (`.github/workflows/cloud-scan.yml`):
-  - Line 79: `JOBRADAR_NOTIFY_WINDOW_DAYS` now defaults to `'14'` (was `'3'`)
-  - Line 98: Bash fallback now defaults to `14` (was `3`)
-  - **Impact:** Production cloud-scan now correctly defaults to 14-day window
-- **Fixed `docs/LIVE_SCAN_VALIDATION.md`:**
-  - Gate 7 description: "default 14 days" (was "default 3 days")
-  - Window tuning: "default 14" (was "default 3")
-  - Env var section: Updated examples to show 14-day default first with corrected list order
-- **Fixed `docs/CLOUD_SCAN.md`:**
-  - Table: "14‑day window" and "within 14 days" (was "3‑day" and "within 3 days")
-  - Stricter freshness: "default `14`" (was "default `3`")
-  - Description: "within 14 days" (was "within 3 days")
-- **Fixed test comment** in `tests/test_overnight_29_product_completion.py`:
-  - Line 10: "14-day notify window behavior (default since PR #45)" (was "14-day (actually 3-day default)")
-- **Added drift-lock test** (`tests/test_notify_window_default.py`):
-  - `test_notify_window_constant_is_14_days()`: Locks `NOTIFY_WINDOW_DAYS == 14` with assertion message referencing all docs to update if changed
-  - `test_default_behavior_uses_14_days()`: Verifies 13-day job is inside window, 15-day job is outside (no env override)
-  - `test_env_override_still_works()`: Verifies `JOBRADAR_NOTIFY_WINDOW_DAYS` env var override works
-  - `test_boundary_case_exactly_14_days()`: Tests strict boundary (exactly 14 days is outside)
+**PRs merged:**
+- **PR #50** ("Overnight #32: Tune classify exclude-list") — 60+ new exclude phrases, 28 new tests, 604 tests passing after merge
+- **PR #51** ("Overnight #33: Scout/health observability") — scout_health table, enhanced health CLI, 14 new tests, 618 tests passing after merge
 
-**Agreed canonical default:** 14 days (matches code since PR #45, now docs are consistent).
+**Remaining open PRs:**
+- **PR #22** ("Remove Discord per-scan alert cap") — superseded by PR #40 (unlimited alert cap default). Leave for user to close.
+- **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
 
-**Test status:** TBD (pending pytest run)
+**Next suggested:** Notify window default vs docs drift — HANDOFF.md and docs still mention both 3-day and 14-day notify windows inconsistently in different sections (overnight #30 noted 3-day as confirmed default, but overnight #15 and other sections reference 14-day). Audit and normalize to single source of truth. Non-Gmail, non-feature work, documentation consistency improvement.
 
-**Next suggested:** Classify exclude-list tuning (mentioned as partial in overnight #25 PR #42) — audit exclude patterns in `classify.py`, test coverage for edge cases (e.g., "ML Engineer Intern", "Data Engineer Intern"), and document tuning rationale in PROJECT_SPEC.
+## Latest prior: Overnight #33 — Scout/Health Observability (PR #51) — LANDED
+
+**Branch:** `cursor/overnight-33-scout-health-37dc` → squash-merged to main (1c105a2)
+
+**Goal:** Add scout/health observability so stale/broken sources are visible without manual spot-checks. Build on overnight #25 per-source summary.
+
+**Delivered:**
+- **Scout health metrics persistence**: New `scout_health` SQLite table tracks per-source fetch outcomes over time
+  - Records: source_name, status (ok/not_modified/error), job_count, http_status, error_detail, was_cached, fetched_at
+  - Automatic recording in `scout.scout_all()` after each source fetch
+  - DB methods: `record_scout_health()`, `get_scout_health_latest()`, `get_scout_health_history()`
+- **Enhanced `health` CLI**: New scout health section shows:
+  - Configured source count (from SOURCES catalog)
+  - Last scan outcomes: ok=N cached=N error=N
+  - Recent failures (up to 5) with error details
+  - Clear "no history yet (run scan to populate)" when empty
+- **Soft-fail preserved**: One bad source still doesn't abort the scan (existing behavior maintained)
+- **Tests**: 14 new tests in `tests/test_scout_health.py`
+  - DB health recording and queries
+  - Scout integration (ok/error/304 outcomes)
+  - Health CLI display (no history, with history, all-ok, error limits)
+  - All 590 tests passing ✅ (5 pre-existing subprocess failures unrelated)
+- **Schema migration**: scout_health table added to db.py SCHEMA, auto-created on first run
+
+**Impact:**
+- Source health visible in `python -m jobradar health` without live network calls
+- Historical reliability tracking enables proactive source monitoring
+- Failure details preserved for debugging (HTTP status, error messages)
+- ETag cache hit indicators tracked for fetch efficiency visibility
+
+**Out of scope:** Gmail work, classify exclude tuning, live alert sends, merging open PRs.
+
+## Latest prior: Overnight #32 — Classify Exclude-List Tuning (PR #50) — LANDED
+
+**Branch:** `cursor/overnight-32-classify-exclude-tune-b21d` → squash-merged to main (3da2237)
+
+**Goal:** Tune classification exclude-list to reduce non-technical internship noise without dropping real SWE/ML/data/quant/infra roles.
+
+**Shipped:**
+- **60+ new exclude phrases** organized by category (precise multi-word phrases to avoid collisions):
+  - Healthcare operations: clinical ops, medical records, health services
+  - Finance operations: treasury, finance ops, investment/portfolio analyst, actuary
+  - Compliance/risk/governance: compliance analyst, regulatory affairs, risk management, policy analyst
+  - HR operations: talent acquisition, people ops, compensation, benefits
+  - Sales/revenue ops: inside sales, revenue ops, demand gen, field/event marketing
+  - Digital marketing: content, email, influencer, affiliate, channel marketing
+  - Product management (non-technical): product manager/operations/strategy without engineering context
+  - Business strategy/consulting: business analyst/strategy, corporate strategy, strategic planning
+  - Content/community: community/social media manager, content strategist, comms coordinator
+  - Operations/facilities: facilities, procurement, vendor management, supply chain analyst
+  - Customer support: customer support/experience, technical support, client services
+  - Education: curriculum, education program
+  - Design/creative: motion graphics, 3D artist, animator, creative intern
+  - Event planning: event/conference coordinator
+  - Sustainability (non-technical): sustainability, ESG, environmental intern
+- **Strong override preserved**: Technical titles with exclude keywords still kept (e.g., "Product Engineer", "Business Intelligence Engineer", "Marketing Data Scientist", "Operations Software Engineer")
+- **Recall-first maintained**: Unknown roles without clear signals default to keep (false positives OK, missed jobs NOT OK)
+- **28 new tests** (21 exclusion tests + 7 override edge case tests)
+- **All 537 tests passing** ✅
+
+**Impact:** More precise filtering of non-technical roles (product management, business ops, marketing, support, compliance) while maintaining strong recall for technical SWE/ML/data/quant/infra roles via override mechanism.
+
+**Status:** Squash-merged to main as part of overnight #34 stack hygiene.
 
 ## Latest prior: Overnight #31 — Merge/Stack Hygiene (PRs #40-#48) — COMPLETE
 
@@ -67,7 +120,7 @@
   - Documented transient vs hard probe failures (`"good"` / `"bad"` / `"error"` return values)
   - Added deferral categories section: `probe_deferred`, `alerts_paused`, `cap_deferred`
   - Fixed Gate 6 to reflect transient defer (5xx/429/timeout) vs hard block (404/4xx)
-  - Updated notify window default (14 days per code and PR #45)
+  - Updated notify window default (confirmed 3 days, not 14)
   - Updated alert cap behavior (priority-first ordering, no was_notified on cap overflow)
   - Updated test count (514+ tests, not 262)
   - Updated scan output format to include `probe_deferred=N`
