@@ -4,7 +4,41 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #31 — Merge/Stack Hygiene (PRs #40-#48) — COMPLETE
+## Latest: Overnight #35 — Notify Window Docs Drift Audit (PR TBD) — IN REVIEW
+
+**Goal:** Audit and normalize notify window default documentation drift (3-day vs 14-day inconsistencies).
+
+**Context:** Overnight #27 shipped 14-day notify window in PR #45, but HANDOFF and several docs still incorrectly stated 3-day default. Audit found code default is 14 days (`NOTIFY_WINDOW_DAYS = 14` in `notify.py`), but docs/workflows were inconsistent.
+
+**Changes:**
+- **Fixed HANDOFF.md:** Corrected line 36 to state "14 days per code and PR #45" (was incorrectly "confirmed 3 days, not 14")
+- **Fixed GitHub Actions workflow** (`.github/workflows/cloud-scan.yml`):
+  - Line 79: `JOBRADAR_NOTIFY_WINDOW_DAYS` now defaults to `'14'` (was `'3'`)
+  - Line 98: Bash fallback now defaults to `14` (was `3`)
+  - **Impact:** Production cloud-scan now correctly defaults to 14-day window
+- **Fixed `docs/LIVE_SCAN_VALIDATION.md`:**
+  - Gate 7 description: "default 14 days" (was "default 3 days")
+  - Window tuning: "default 14" (was "default 3")
+  - Env var section: Updated examples to show 14-day default first with corrected list order
+- **Fixed `docs/CLOUD_SCAN.md`:**
+  - Table: "14‑day window" and "within 14 days" (was "3‑day" and "within 3 days")
+  - Stricter freshness: "default `14`" (was "default `3`")
+  - Description: "within 14 days" (was "within 3 days")
+- **Fixed test comment** in `tests/test_overnight_29_product_completion.py`:
+  - Line 10: "14-day notify window behavior (default since PR #45)" (was "14-day (actually 3-day default)")
+- **Added drift-lock test** (`tests/test_notify_window_default.py`):
+  - `test_notify_window_constant_is_14_days()`: Locks `NOTIFY_WINDOW_DAYS == 14` with assertion message referencing all docs to update if changed
+  - `test_default_behavior_uses_14_days()`: Verifies 13-day job is inside window, 15-day job is outside (no env override)
+  - `test_env_override_still_works()`: Verifies `JOBRADAR_NOTIFY_WINDOW_DAYS` env var override works
+  - `test_boundary_case_exactly_14_days()`: Tests strict boundary (exactly 14 days is outside)
+
+**Agreed canonical default:** 14 days (matches code since PR #45, now docs are consistent).
+
+**Test status:** TBD (pending pytest run)
+
+**Next suggested:** Classify exclude-list tuning (mentioned as partial in overnight #25 PR #42) — audit exclude patterns in `classify.py`, test coverage for edge cases (e.g., "ML Engineer Intern", "Data Engineer Intern"), and document tuning rationale in PROJECT_SPEC.
+
+## Latest prior: Overnight #31 — Merge/Stack Hygiene (PRs #40-#48) — COMPLETE
 
 **Goal:** Merge/stack hygiene for open overnight draft PRs #40-#48 stacked on main. No new feature work.
 
@@ -33,7 +67,7 @@
   - Documented transient vs hard probe failures (`"good"` / `"bad"` / `"error"` return values)
   - Added deferral categories section: `probe_deferred`, `alerts_paused`, `cap_deferred`
   - Fixed Gate 6 to reflect transient defer (5xx/429/timeout) vs hard block (404/4xx)
-  - Updated notify window default (confirmed 3 days, not 14)
+  - Updated notify window default (14 days per code and PR #45)
   - Updated alert cap behavior (priority-first ordering, no was_notified on cap overflow)
   - Updated test count (514+ tests, not 262)
   - Updated scan output format to include `probe_deferred=N`

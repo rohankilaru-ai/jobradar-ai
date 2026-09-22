@@ -7,7 +7,7 @@ Tests end-to-end integration of all recent overnight features:
 - Notion Backlog only when should_alert (overnight #15)
 - Internships-only / new-grad exclude (overnight #14)
 - Pipeline resilience (Director/Notion errors)
-- 14-day (actually 3-day default) notify window behavior
+- 14-day notify window behavior (default since PR #45)
 """
 
 from __future__ import annotations

@@ -51,8 +51,8 @@ gh workflow run cloud-scan.yml -f test_discord=true
 |---|---|
 | Overnight: no Discord | Mac asleep (local DNS fail). Cloud was scanning but **Discord secrets were empty** until ~16:42 UTC Sep 15 — so cloud could not post. |
 | Open laptop → flood | Local LaunchAgent woke, saw jobs “new” to the **Mac** DB, Discord-on → dump. |
-| After fixing secrets → another dump | First cloud runs with working webhooks + thin/empty cache treated listings as newly alertable. Spam gates (`REQUIRE_POSTED_AT`, 3‑day window, cap 15) now limit that. |
-| Quiet for a while after | Normal: `alerted=0` when nothing new has a source `posted_at` within 3 days. |
+| After fixing secrets → another dump | First cloud runs with working webhooks + thin/empty cache treated listings as newly alertable. Spam gates (`REQUIRE_POSTED_AT`, 14‑day window, unlimited cap) now limit that. |
+| Quiet for a while after | Normal: `alerted=0` when nothing new has a source `posted_at` within 14 days. |
 
 **Rule:** one Discord owner at a time. Use `./scripts/scan-mode.sh local|cloud` — do not enable both.
 
@@ -90,9 +90,9 @@ Refresh tokens expire if unused for long periods — re-run `gmail-auth` locally
 | **Pause all alerts now** | GitHub → Actions → **cloud-scan** → `...` menu → **Disable workflow** |
 | **Pause without disabling** | Settings → Actions → Variables → `JOBRADAR_ALERTS_ENABLED` = `0` |
 | **Optional alert cap** | Variable `JOBRADAR_MAX_ALERTS_PER_SCAN` (`0` = unlimited, default) |
-| **Stricter freshness** | Variable `JOBRADAR_NOTIFY_WINDOW_DAYS` (default `3`) |
+| **Stricter freshness** | Variable `JOBRADAR_NOTIFY_WINDOW_DAYS` (default `14`) |
 
-By default cloud-scan Discord-alerts **every** matching new job with a known **source post date** within 3 days (`JOBRADAR_REQUIRE_POSTED_AT=1`). No per-scan cap — you will not miss alert #16+. Older undated Simplify rows still do not flood just because cloud first saw them today.
+By default cloud-scan Discord-alerts **every** matching new job with a known **source post date** within 14 days (`JOBRADAR_REQUIRE_POSTED_AT=1`). No per-scan cap — you will not miss alert #16+. Older undated Simplify rows still do not flood just because cloud first saw them today.
 
 ## Local loop
 
