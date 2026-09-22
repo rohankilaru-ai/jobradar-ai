@@ -4,46 +4,42 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #37 — Scout Health Age/Staleness Surfacing (PR #55) — IN PROGRESS
+## Latest: Overnight #38 — Merge/Stack Hygiene (PR #55) — COMPLETE
 
-**Branch:** `cursor/overnight-37-scout-health-staleness-96a2` → draft PR #55 open  
-**Commit:** 6e79837
+**Goal:** Merge/stack hygiene for overnight #37 draft PR #55 onto main. No new feature work. Mirror overnight #31/#34/#36 pattern.
+
+**Completed:**
+- **PR #55 merged** ("Overnight #37: Scout health age/staleness surfacing")
+- **PR marked ready** for review (converted from draft)
+- **Resolved HANDOFF.md merge conflict** after PR #54 landed (merged origin/main into PR branch, cleaned conflict markers)
+- **Full pytest green** before merge (all 632 tests passing ✅)
+- **Main tip after overnight #38:** 6ebf952 (was 42f5b51 before overnight #38)
+
+**Branch:** `cursor/overnight-37-scout-health-staleness-96a2` (PR #55) → squash-merged to main (6ebf952)
+
+**PR merged:**
+- **PR #55** ("Overnight #37: Scout health age/staleness surfacing") — Added source health age/staleness observability to `health` CLI. Database enhancements for age calculation, staleness detection (3-day default threshold), fresh/stale classification. CLI shows stale sources and never-fetched sources. 10 new tests in test_scout_health.py. All 632 tests passing after merge.
+
+**Remaining open PRs:**
+- **PR #22** ("Remove Discord per-scan alert cap") — superseded by PR #40 (unlimited alert cap default). Leave for user to close.
+- **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
+
+**Next suggested:** Classification recall improvements — review classify.py exclusion logic for borderline technical roles that may be incorrectly filtered (e.g., "Product Engineer", "Technical Program Manager", "Solutions Engineer"). Current exclude-list (overnight #32 / PR #50) is extensive; consider adding smoke tests for specific borderline titles to prevent false negatives. Non-Gmail, test-driven, improves notification recall. Do NOT suggest already-landed work (notify-window, classify-exclude, scout-health items are done).
+
+## Latest prior: Overnight #37 — Scout Health Age/Staleness Surfacing (PR #55) — LANDED
+
+**Branch:** `cursor/overnight-37-scout-health-staleness-96a2` → squash-merged to main (6ebf952)
 
 **Goal:** Add observability for source health **age** (time since last successful fetch) and **staleness** (sources not updated for >N days) in `python -m jobradar health` output so operators can spot dead/quiet sources without manual spot-checks. Build on overnight #33 / PR #51 scout_health foundation.
 
 **Completed:**
-- **Database enhancements** (`src/jobradar/db.py`):
-  - Added `SCOUT_HEALTH_STALENESS_THRESHOLD_DAYS = 3` constant (configurable default)
-  - New method `get_scout_health_with_age(staleness_threshold_days)` calculates age since last successful fetch (ok/not_modified only)
-  - Staleness detection (age > threshold), fresh/stale classification
-  - Helper function `_format_age(seconds)` for human-readable age display (e.g., "5d 2h", "1d")
-- **Health CLI enhancements** (`src/jobradar/cli.py`):
-  - Age/staleness summary section (fresh count, stale count, never-fetched count)
-  - Stale sources list when any exist (name, age, last fetch timestamp)
-  - Never-fetched sources list (sources in catalog but no history)
-  - Preserved existing error display
-- **Edge cases handled**:
-  - Only ok/not_modified count as fresh; recent errors don't reset staleness
-  - Never-fetched sources identified by comparing SOURCES catalog with history
-  - Threshold boundaries tested (at/just over/just under 3 days)
-  - Empty history / no sources handled cleanly
-- **Tests:** 10 new tests in `tests/test_scout_health.py`
-  - Fresh/stale/boundary/mixed status/last successful fetch/custom threshold/no history
-  - Age formatting helpers
-  - CLI display with staleness info
-  - All 632 tests passing ✅
-- **Draft PR #55** created with full documentation
+- **Database enhancements** (`src/jobradar/db.py`): `SCOUT_HEALTH_STALENESS_THRESHOLD_DAYS = 3` constant, `get_scout_health_with_age()` method for age calculation, staleness detection, `_format_age()` helper
+- **Health CLI enhancements** (`src/jobradar/cli.py`): Age/staleness summary, stale sources list, never-fetched sources list, preserved error display
+- **Edge cases**: Only ok/not_modified count as fresh, never-fetched detection, threshold boundaries, empty history handling
+- **Tests:** 10 new tests in `tests/test_scout_health.py` — fresh/stale/boundary/mixed/custom threshold/no history/age formatting/CLI display
+- **All 632 tests passing** ✅
 
-**Pre-step completed:** PR #54 (overnight #36 HANDOFF update) converted to ready and squash-merged onto main (42f5b51).
-
-**Main tip after overnight #37 work:** 6e79837 (on feature branch; main at 42f5b51 until PR #55 merged)
-
-**Remaining open PRs:**
-- **PR #55** ("Overnight #37: Scout health age/staleness") — this work, draft PR open, ready for review
-- **PR #22** ("Remove Discord per-scan alert cap") — superseded by PR #40 (unlimited alert cap default). Leave for user to close.
-- **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
-
-**Next suggested:** Classification recall improvements — review classify.py exclusion logic for borderline technical roles that may be incorrectly filtered (e.g., "Product Engineer", "Technical Program Manager", "Solutions Engineer"). Current exclude-list (overnight #32 / PR #50) is extensive; consider adding smoke tests for specific borderline titles to prevent false negatives. Non-Gmail, test-driven, improves notification recall.
+**Status:** Squash-merged to main (6ebf952) as part of overnight #38 stack hygiene.
 
 ## Latest prior: Overnight #36 — Merge/Stack Hygiene (PR #53/#54) — COMPLETE
 
@@ -66,7 +62,3 @@
 **Remaining open PRs (at time of overnight #36 completion):**
 - **PR #22** ("Remove Discord per-scan alert cap") — superseded by PR #40 (unlimited alert cap default). Leave for user to close.
 - **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
-
-**Next suggested (from overnight #36):** Scout health age/staleness surfacing — Add observability for source health age (time since last successful fetch) and staleness detection (sources not updated for N days) to `health` CLI output and potentially alert on stale sources. Would help identify sources that may need attention or removal before they silently fail. Non-Gmail, builds on overnight #33 scout_health foundation.
-
-## Latest prior: Overnight #35 — Notify Window Docs Drift Audit (PR #53) — LANDED
