@@ -573,6 +573,115 @@ def test_strong_override_customer_data_engineer():
     assert should_keep(JobRecord(company="CX Tech", title="Customer Analytics Engineer")) is True
 
 
+# --- Overnight #39: Classification recall for borderline technical roles ---
+
+
+def test_borderline_technical_account_manager():
+    """Technical Account Manager should be kept (borderline technical role)."""
+    # Technical variant should be kept
+    assert should_keep(JobRecord(company="Tech Co", title="Technical Account Manager Intern")) is True
+    assert should_keep(JobRecord(company="SaaS Co", title="Technical Account Manager")) is True
+    assert should_keep(JobRecord(company="Cloud Co", title="TAM Intern - Technical Account Manager")) is True
+    # Regular Account Manager should still be excluded
+    assert should_keep(JobRecord(company="Sales Co", title="Account Manager Intern")) is False
+
+
+def test_borderline_technical_product_manager():
+    """Technical Product Manager should be kept (borderline technical role)."""
+    # Technical variant should be kept
+    assert should_keep(JobRecord(company="Tech Co", title="Technical Product Manager Intern")) is True
+    assert should_keep(JobRecord(company="SaaS Co", title="Technical Product Manager")) is True
+    assert should_keep(JobRecord(company="AI Co", title="TPM - Technical Product Manager Intern")) is True
+    # Regular Product Manager should still be excluded
+    assert should_keep(JobRecord(company="Product Co", title="Product Manager Intern")) is False
+    # Product Marketing should still be excluded
+    assert should_keep(JobRecord(company="Marketing", title="Product Marketing Intern")) is False
+
+
+def test_borderline_solutions_engineer():
+    """Solutions Engineer and related roles should be kept."""
+    assert should_keep(JobRecord(company="Tech Co", title="Solutions Engineer Intern")) is True
+    assert should_keep(JobRecord(company="SaaS Co", title="Technical Solutions Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Cloud", title="Customer Solutions Engineer")) is True
+    assert should_keep(JobRecord(company="Platform", title="Solutions Architect Intern")) is True
+
+
+def test_borderline_field_application_engineer():
+    """Field and Application Engineers should be kept."""
+    assert should_keep(JobRecord(company="Hardware Co", title="Field Application Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Chip Co", title="Field Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Tech", title="Application Engineer Intern")) is True
+
+
+def test_borderline_implementation_support_engineer():
+    """Implementation and Support Engineers should be kept (technical roles)."""
+    assert should_keep(JobRecord(company="SaaS Co", title="Implementation Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Platform", title="Support Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Cloud", title="Customer Engineer Intern")) is True
+    # But Technical Support without 'Engineer' should stay excluded
+    assert should_keep(JobRecord(company="Support", title="Technical Support Intern")) is False
+
+
+def test_borderline_integration_professional_services():
+    """Integration and Professional Services Engineers should be kept."""
+    assert should_keep(JobRecord(company="Integration Co", title="Integration Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Consulting", title="Professional Services Engineer Intern")) is True
+
+
+def test_borderline_architect_roles():
+    """Architect roles (solutions, cloud, data, technical) should be kept."""
+    assert should_keep(JobRecord(company="Cloud Co", title="Cloud Architect Intern")) is True
+    assert should_keep(JobRecord(company="Data Co", title="Data Architect Intern")) is True
+    assert should_keep(JobRecord(company="Tech", title="Technical Architect Intern")) is True
+    assert should_keep(JobRecord(company="Solutions", title="Solutions Architect Intern")) is True
+
+
+def test_borderline_technical_program_manager():
+    """Technical Program Manager and TPM should be kept."""
+    assert should_keep(JobRecord(company="Tech Co", title="Technical Program Manager Intern")) is True
+    assert should_keep(JobRecord(company="Platform", title="TPM Intern")) is True
+    assert should_keep(JobRecord(company="Infrastructure", title="Technical Project Manager Intern")) is True
+
+
+def test_borderline_developer_relations():
+    """Developer Relations and Developer Advocate roles should be kept."""
+    assert should_keep(JobRecord(company="DevTools Co", title="Developer Relations Intern")) is True
+    assert should_keep(JobRecord(company="API Co", title="Developer Advocate Intern")) is True
+    assert should_keep(JobRecord(company="Platform", title="DevRel Engineer Intern")) is True
+
+
+def test_borderline_site_reliability_engineer():
+    """Site Reliability Engineer (SRE) should be kept."""
+    assert should_keep(JobRecord(company="Cloud Co", title="Site Reliability Engineer Intern")) is True
+    assert should_keep(JobRecord(company="Platform", title="SRE Intern")) is True
+
+
+def test_borderline_edge_cases_summary():
+    """Summary test: all borderline technical roles should be kept."""
+    borderline_keep = [
+        "Product Engineer Intern",
+        "Technical Account Manager Intern",
+        "Technical Product Manager Intern",
+        "Solutions Engineer Intern",
+        "Technical Solutions Engineer Intern",
+        "Customer Engineer Intern",
+        "Field Application Engineer Intern",
+        "Implementation Engineer Intern",
+        "Support Engineer Intern",
+        "Professional Services Engineer Intern",
+        "Integration Engineer Intern",
+        "Site Reliability Engineer Intern",
+        "Solutions Architect Intern",
+        "Cloud Architect Intern",
+        "Technical Program Manager Intern",
+        "Developer Relations Intern",
+    ]
+    
+    for title in borderline_keep:
+        assert should_keep(JobRecord(company="TechCo", title=title)) is True, \
+            f"Borderline technical role should be kept: {title}"
+
+
 # --- Original tests preserved below ---
 
 
