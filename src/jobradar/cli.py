@@ -80,6 +80,30 @@ def cmd_health(_: argparse.Namespace) -> int:
     print(f"  require posted_at: {'yes' if require_posted_at() else 'no'}")
     max_alerts = max_alerts_per_scan()
     print(f"  max alerts/scan: {max_alerts if max_alerts > 0 else 'unlimited'}")
+    
+    # Scout health (overnight #33)
+    from jobradar.sources import SOURCES
+    print(f"\nScout health:")
+    print(f"  configured sources: {len(SOURCES)}")
+    
+    scout_health = db.get_scout_health_latest()
+    if not scout_health:
+        print("  no history yet (run scan to populate)")
+    else:
+        ok_count = sum(1 for h in scout_health if h["status"] == "ok")
+        cached_count = sum(1 for h in scout_health if h["status"] == "not_modified")
+        error_count = sum(1 for h in scout_health if h["status"] == "error")
+        
+        print(f"  last scan: ok={ok_count} cached={cached_count} error={error_count}")
+        
+        # Show recent errors if any
+        errors = [h for h in scout_health if h["status"] == "error"]
+        if errors:
+            print("  recent failures:")
+            for err in errors[:5]:  # Show up to 5 most recent errors
+                detail = err.get("error_detail", "unknown error")
+                print(f"    {err['source_name']}: {detail}")
+    
     return 0
 
 

@@ -83,6 +83,18 @@ CREATE TABLE IF NOT EXISTS applications (
   notion_page_id TEXT,
   created_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS scout_health (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  job_count INTEGER NOT NULL DEFAULT 0,
+  http_status INTEGER,
+  error_detail TEXT,
+  was_cached INTEGER NOT NULL DEFAULT 0,
+  fetched_at TEXT NOT NULL,
+  UNIQUE(source_name, fetched_at)
+);
 """
 
 
@@ -442,3 +454,77 @@ class Database:
                 "UPDATE jobs SET is_closed = 1 WHERE canonical_key = ?",
                 (canonical_key,),
             )
+
+    def record_scout_health(
+        self,
+        *,
+        source_name: str,
+        status: str,
+        job_count: int = 0,
+        http_status: int | None = None,
+        error_detail: str | None = None,
+        was_cached: bool = False,
+        fetched_at: str | None = None,
+    ) -> None:
+        """Record scout source health metrics."""
+        from datetime import datetime, timezone
+
+        if fetched_at is None:
+            fetched_at = datetime.now(timezone.utc).isoformat()
+        
+        with self.connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO scout_health (
+                  source_name, status, job_count, http_status,
+                  error_detail, was_cached, fetched_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    source_name,
+                    status,
+                    job_count,
+                    http_status,
+                    error_detail,
+                    1 if was_cached else 0,
+                    fetched_at,
+                ),
+            )
+
+    def get_scout_health_latest(self) -> list[dict]:
+        """Get most recent scout health record for each source."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT source_name, status, job_count, http_status,
+                       error_detail, was_cached, fetched_at
+                FROM scout_health
+                WHERE (source_name, fetched_at) IN (
+                  SELECT source_name, MAX(fetched_at)
+                  FROM scout_health
+                  GROUP BY source_name
+                )
+                ORDER BY source_name
+                """
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def get_scout_health_history(
+        self,
+        source_name: str,
+        limit: int = 10,
+    ) -> list[dict]:
+        """Get recent health history for a specific source."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT source_name, status, job_count, http_status,
+                       error_detail, was_cached, fetched_at
+                FROM scout_health
+                WHERE source_name = ?
+                ORDER BY fetched_at DESC
+                LIMIT ?
+                """,
+                (source_name, limit),
+            ).fetchall()
+            return [dict(row) for row in rows]
