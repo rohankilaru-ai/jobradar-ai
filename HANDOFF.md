@@ -4,7 +4,68 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #34 — Merge/Stack Hygiene (PRs #50, #51) — COMPLETE
+## Latest: Overnight #37 — Scout Health Age/Staleness Surfacing (PR #55) — IN PROGRESS
+
+**Branch:** `cursor/overnight-37-scout-health-staleness-96a2` → draft PR #55 open  
+**Commit:** 6e79837
+
+**Goal:** Add observability for source health **age** (time since last successful fetch) and **staleness** (sources not updated for >N days) in `python -m jobradar health` output so operators can spot dead/quiet sources without manual spot-checks. Build on overnight #33 / PR #51 scout_health foundation.
+
+**Completed:**
+- **Database enhancements** (`src/jobradar/db.py`):
+  - Added `SCOUT_HEALTH_STALENESS_THRESHOLD_DAYS = 3` constant (configurable default)
+  - New method `get_scout_health_with_age(staleness_threshold_days)` calculates age since last successful fetch (ok/not_modified only)
+  - Staleness detection (age > threshold), fresh/stale classification
+  - Helper function `_format_age(seconds)` for human-readable age display (e.g., "5d 2h", "1d")
+- **Health CLI enhancements** (`src/jobradar/cli.py`):
+  - Age/staleness summary section (fresh count, stale count, never-fetched count)
+  - Stale sources list when any exist (name, age, last fetch timestamp)
+  - Never-fetched sources list (sources in catalog but no history)
+  - Preserved existing error display
+- **Edge cases handled**:
+  - Only ok/not_modified count as fresh; recent errors don't reset staleness
+  - Never-fetched sources identified by comparing SOURCES catalog with history
+  - Threshold boundaries tested (at/just over/just under 3 days)
+  - Empty history / no sources handled cleanly
+- **Tests:** 10 new tests in `tests/test_scout_health.py`
+  - Fresh/stale/boundary/mixed status/last successful fetch/custom threshold/no history
+  - Age formatting helpers
+  - CLI display with staleness info
+  - All 632 tests passing ✅
+- **Draft PR #55** created with full documentation
+
+**Pre-step completed:** PR #54 (overnight #36 HANDOFF update) converted to ready and squash-merged onto main (5cdf6d0). Main tip after #36 was 5cdf6d0 as expected.
+
+**Main tip after overnight #37 work:** 6e79837 (on feature branch; main still at 5cdf6d0 until PR #55 merged)
+
+**Remaining open PRs:**
+- **PR #55** ("Overnight #37: Scout health age/staleness") — this work, draft PR open, ready for review
+- **PR #22** ("Remove Discord per-scan alert cap") — superseded by PR #40 (unlimited alert cap default). Leave for user to close.
+- **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
+
+**Next suggested:** Classification recall improvements — review classify.py exclusion logic for borderline technical roles that may be incorrectly filtered (e.g., "Product Engineer", "Technical Program Manager", "Solutions Engineer"). Current exclude-list (overnight #32 / PR #50) is extensive; consider adding smoke tests for specific borderline titles to prevent false negatives. Non-Gmail, test-driven, improves notification recall.
+
+## Latest prior: Overnight #36 — Notify Window Docs Drift Audit (PR #53/#54) — COMPLETE
+
+**Branch:** `cursor/overnight-35-notify-window-docs-audit-bf01` (PR #53) + `cursor/overnight-36-handoff-update-1cbe` (PR #54) → both squash-merged to main (5cdf6d0)
+
+**Goal (overnight #35):** Audit and normalize notify window docs drift — HANDOFF.md and docs referenced both 3-day and 14-day notify windows inconsistently. Normalize to single source of truth (14-day default per overnight #27 / PR #45).
+
+**Completed (overnight #35 / PR #53):**
+- **Docs normalized to 14-day default**: Updated HANDOFF.md, CLOUD_SCAN.md, LIVE_SCAN_VALIDATION.md
+- **Test validation**: 4 new tests in `tests/test_notify_window_default.py` verify 14-day behavior
+- **All 623 tests passing** ✅
+- **Main tip:** 5cdf6d0 (was 8a84e86 before overnight #35)
+
+**Goal (overnight #36):** Merge/stack hygiene for PR #53 (overnight #35 notify-window docs audit). Update HANDOFF.md to reflect merge and set next work.
+
+**Completed (overnight #36 / PR #54):**
+- **PR #53 merged** onto main (5cdf6d0)
+- **HANDOFF.md updated** to document overnight #35 completion
+- **Next work set** to scout health age/staleness (overnight #37, this work)
+- **CI green** for PR #54 before merge
+
+## Latest prior: Overnight #34 — Merge/Stack Hygiene (PRs #50, #51) — COMPLETE
 
 **Goal:** Merge/stack hygiene for open overnight draft PRs #50 and #51 onto main. No new feature work. Mirror overnight #31 pattern.
 
@@ -20,12 +81,6 @@
 **PRs merged:**
 - **PR #50** ("Overnight #32: Tune classify exclude-list") — 60+ new exclude phrases, 28 new tests, 604 tests passing after merge
 - **PR #51** ("Overnight #33: Scout/health observability") — scout_health table, enhanced health CLI, 14 new tests, 618 tests passing after merge
-
-**Remaining open PRs:**
-- **PR #22** ("Remove Discord per-scan alert cap") — superseded by PR #40 (unlimited alert cap default). Leave for user to close.
-- **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
-
-**Next suggested:** Notify window default vs docs drift — HANDOFF.md and docs still mention both 3-day and 14-day notify windows inconsistently in different sections (overnight #30 noted 3-day as confirmed default, but overnight #15 and other sections reference 14-day). Audit and normalize to single source of truth. Non-Gmail, non-feature work, documentation consistency improvement.
 
 ## Latest prior: Overnight #33 — Scout/Health Observability (PR #51) — LANDED
 
