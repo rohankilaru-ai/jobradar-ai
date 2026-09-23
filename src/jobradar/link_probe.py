@@ -19,18 +19,25 @@ def probe_url(url: str, timeout: float = 8.0) -> ProbeResult:
     """Probe a URL via HEAD or GET. Returns 'good', 'bad', or 'error'.
     
     - 'good': 2xx/3xx response
-    - 'bad': 4xx response (except 429)
+    - 'bad': 4xx response (except 429), or fixture/dummy/placeholder URL
     - 'error': 5xx, 429 (rate limit), network/timeout failure
     
     Treating 5xx and 429 as 'error' (transient) allows retry; 4xx (except 429)
     are permanent failures.
+
+    Fixture hosts (example.com/net/org, test.com/org, localhost, …) are
+    rejected locally without an HTTP round-trip — example.com can return 200.
     """
+    from jobradar.models import is_fixture_or_dummy_url
+
     url_clean = (url or "").strip()
     if not url_clean:
         return "bad"
     if url_clean in ("TBD", "N/A", "None", "null", "undefined", ""):
         return "bad"
     if not url_clean.startswith(("http://", "https://")):
+        return "bad"
+    if is_fixture_or_dummy_url(url_clean):
         return "bad"
     
     try:

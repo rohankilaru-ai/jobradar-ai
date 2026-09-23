@@ -18,7 +18,7 @@ import httpx
 
 from jobradar.db import Database
 from jobradar.link_probe import is_placeholder_url, probe_url as detailed_probe_url
-from jobradar.models import JobRecord
+from jobradar.models import JobRecord, is_fixture_or_dummy_url
 from jobradar.tier import classify_company_tier
 
 log = logging.getLogger("jobradar.notify")
@@ -48,10 +48,14 @@ NOTIFY_WINDOW_DAYS = 14
 BAD_URL_PATTERNS = [
     r"example\.com",
     r"example\.org",
+    r"example\.net",
     r"localhost",
     r"127\.0\.0\.1",
+    r"0\.0\.0\.0",
     r"test\.com",
+    r"test\.org",
     r"placeholder",
+    r"about:blank",
 ]
 
 
@@ -436,10 +440,11 @@ def job_notify_block_reason(job: JobRecord) -> str | None:
         return "empty URL"
     if is_placeholder_url(url):
         return f"placeholder URL: {url[:80]}"
-    
-    url_lower = url.lower()
-    if "example.com" in url_lower or "example.org" in url_lower:
-        return "test fixture URL (example.com/org)"
+
+    # Fixture / dummy / local hosts — always block, even when company name
+    # loosely matches the host (e.g. company="Test" + test.com).
+    if is_fixture_or_dummy_url(url) or not is_url_quality_good(url):
+        return f"fixture/dummy URL: {url[:80]}"
     
     # Check if URL is a specific job posting (not generic career page)
     if not is_specific_job_url(url):
@@ -471,7 +476,7 @@ def has_transient_probe_failure(job: JobRecord) -> bool:
         return False
     
     url = sanitize_job_url(job.url)
-    if not url or is_placeholder_url(url):
+    if not url or is_placeholder_url(url) or is_fixture_or_dummy_url(url) or not is_url_quality_good(url):
         return False  # Not transient, just bad
     
     probe_result = detailed_probe_url(url)
@@ -483,17 +488,22 @@ def is_link_probe_enabled() -> bool:
     return link_probe_enabled()
 
 def is_url_quality_good(url: str) -> bool:
-    """Lightweight URL quality check (empty / example / invalid scheme)."""
+    """Lightweight URL quality check (empty / fixture hosts / invalid scheme).
+
+    Host checks go through ``is_fixture_or_dummy_url`` (suffix-safe) so
+    ``contest.com`` is not false-flagged by ``test.com``.
+    """
     url = (url or "").strip()
     if not url:
         return False
-    url_lower = url.lower()
-    for pattern in BAD_URL_PATTERNS:
-        if re.search(pattern, url_lower):
-            return False
+    if is_fixture_or_dummy_url(url):
+        return False
     try:
         parsed = urlparse(url)
         if not parsed.scheme or not parsed.netloc:
+            return False
+        # Extra path/token marker (kept from BAD_URL_PATTERNS era)
+        if "placeholder" in (parsed.netloc or "").lower():
             return False
     except Exception:
         return False

@@ -11,26 +11,26 @@ from jobradar.link_probe import probe_url, probe_url_for_notify
 
 def test_probe_url_good_maps_to_true(respx_mock):
     """probe_url 'good' (2xx) → probe_url_for_notify True"""
-    respx_mock.head("https://example.com/job").mock(return_value=httpx.Response(200))
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(return_value=httpx.Response(200))
     
-    assert probe_url("https://example.com/job") == "good"
-    assert probe_url_for_notify("https://example.com/job") is True
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "good"
+    assert probe_url_for_notify("https://jobs.acmecorp.dev/opening/probe") is True
 
 
 def test_probe_url_redirect_maps_to_true(respx_mock):
     """probe_url 'good' (3xx) → probe_url_for_notify True"""
-    respx_mock.head("https://example.com/job").mock(return_value=httpx.Response(302))
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(return_value=httpx.Response(302))
     
-    assert probe_url("https://example.com/job") == "good"
-    assert probe_url_for_notify("https://example.com/job") is True
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "good"
+    assert probe_url_for_notify("https://jobs.acmecorp.dev/opening/probe") is True
 
 
 def test_probe_url_bad_404_maps_to_false(respx_mock):
     """probe_url 'bad' (404) → probe_url_for_notify False"""
-    respx_mock.head("https://example.com/job").mock(return_value=httpx.Response(404))
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(return_value=httpx.Response(404))
     
-    assert probe_url("https://example.com/job") == "bad"
-    assert probe_url_for_notify("https://example.com/job") is False
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "bad"
+    assert probe_url_for_notify("https://jobs.acmecorp.dev/opening/probe") is False
 
 
 def test_probe_url_bad_500_maps_to_false(respx_mock):
@@ -39,26 +39,26 @@ def test_probe_url_bad_500_maps_to_false(respx_mock):
     PR #38: 5xx now treated as 'error' (transient) instead of 'bad' (permanent).
     This allows jobs to be retried later instead of being permanently silenced.
     """
-    respx_mock.head("https://example.com/job").mock(return_value=httpx.Response(500))
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(return_value=httpx.Response(500))
     
-    assert probe_url("https://example.com/job") == "error"
-    assert probe_url_for_notify("https://example.com/job") is False
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "error"
+    assert probe_url_for_notify("https://jobs.acmecorp.dev/opening/probe") is False
 
 
 def test_probe_url_error_timeout_maps_to_false(respx_mock):
     """probe_url 'error' (timeout) → probe_url_for_notify False"""
-    respx_mock.head("https://example.com/job").mock(side_effect=httpx.TimeoutException("timeout"))
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(side_effect=httpx.TimeoutException("timeout"))
     
-    assert probe_url("https://example.com/job") == "error"
-    assert probe_url_for_notify("https://example.com/job") is False
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "error"
+    assert probe_url_for_notify("https://jobs.acmecorp.dev/opening/probe") is False
 
 
 def test_probe_url_error_network_maps_to_false(respx_mock):
     """probe_url 'error' (network) → probe_url_for_notify False"""
-    respx_mock.head("https://example.com/job").mock(side_effect=httpx.ConnectError("connection failed"))
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(side_effect=httpx.ConnectError("connection failed"))
     
-    assert probe_url("https://example.com/job") == "error"
-    assert probe_url_for_notify("https://example.com/job") is False
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "error"
+    assert probe_url_for_notify("https://jobs.acmecorp.dev/opening/probe") is False
 
 
 def test_probe_url_403_job_url_accepts(respx_mock):
@@ -68,7 +68,7 @@ def test_probe_url_403_job_url_accepts(respx_mock):
     This preserves existing notify behavior where 403 is acceptable for
     URLs containing job/career/position keywords (common ATS pattern).
     """
-    url = "https://example.com/careers/job/12345"
+    url = "https://jobs.acmecorp.dev/careers/job/12345"
     respx_mock.head(url).mock(return_value=httpx.Response(403))
     
     assert probe_url(url) == "bad"
@@ -77,7 +77,7 @@ def test_probe_url_403_job_url_accepts(respx_mock):
 
 def test_probe_url_403_non_job_url_rejects(respx_mock):
     """403 on non-job URL → probe_url_for_notify False"""
-    url = "https://example.com/random/page"
+    url = "https://corp.acmecorp.dev/random/page"
     respx_mock.head(url).mock(return_value=httpx.Response(403))
     
     assert probe_url(url) == "bad"

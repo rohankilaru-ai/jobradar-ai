@@ -13,7 +13,7 @@ from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 _WS = re.compile(r"\s+")
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 
-# Placeholder/invalid URL patterns to reject
+# Placeholder/invalid URL host markers to reject (fixture / dummy / local)
 _BAD_URL_PATTERNS = {
     "example.com",
     "example.org",
@@ -24,7 +24,72 @@ _BAD_URL_PATTERNS = {
     "127.0.0.1",
     "0.0.0.0",
     "about:blank",
+    "placeholder.com",
 }
+
+_PLACEHOLDER_TOKENS = frozenset({"tbd", "n/a", "na", "none", "null", "undefined", "-"})
+
+
+def _host_is_fixture(host: str) -> bool:
+    """Suffix-safe fixture host match (avoid 'test.com' matching 'contest.com')."""
+    host = (host or "").lower().strip()
+    if host.startswith("www."):
+        host = host[4:]
+    if not host:
+        return False
+    labels = host.split(".")
+    if any("placeholder" in label for label in labels):
+        return True
+    for bad in _BAD_URL_PATTERNS:
+        if bad == "about:blank":
+            continue
+        if host == bad or host.endswith("." + bad):
+            return True
+    return False
+
+
+def is_fixture_or_dummy_url(url: str | None) -> bool:
+    """True for empty, placeholder tokens, and known fixture/dummy/local hosts.
+
+    Does NOT flag generic career pages (those stay in ``is_bad_url`` /
+    ``is_specific_job_url``). Used by notify + probe so company-name matches
+    cannot bypass fixture host blocks.
+    """
+    raw = (url or "").strip()
+    if not raw:
+        return True
+    lower = raw.lower()
+    if lower in _PLACEHOLDER_TOKENS:
+        return True
+    if lower.startswith(("javascript:", "mailto:", "data:", "#", "about:")):
+        return True
+    if "about:blank" in lower:
+        return True
+    try:
+        parsed = urlparse(raw)
+        netloc = (parsed.netloc or "").lower()
+        # Bare host-ish strings without a scheme (e.g. "example.com/job")
+        if not parsed.scheme or not netloc:
+            # Treat as fixture if any known host marker appears as a host-shaped token
+            first = lower.split("/", 1)[0].split("?", 1)[0]
+            if _host_is_fixture(first) or any(
+                lower == bad or lower.startswith(bad + "/") for bad in _BAD_URL_PATTERNS if bad != "about:blank"
+            ):
+                return True
+            return True  # missing scheme/netloc is never alert-worthy
+        host = netloc.split("@")[-1]
+        if host.startswith("[") and "]" in host:
+            host_no_port = host.split("]", 1)[0] + "]"
+        elif host.count(":") >= 1 and not host.startswith("["):
+            # hostname:port (IPv4 or name) — strip final :port
+            host_no_port = host.rsplit(":", 1)[0]
+        else:
+            host_no_port = host
+        if _host_is_fixture(host_no_port):
+            return True
+    except Exception:
+        return True
+    return False
 
 
 def _norm(s: str) -> str:
@@ -80,20 +145,11 @@ def _is_generic_career_page(url: str) -> bool:
 
 
 def is_bad_url(url: str) -> bool:
-    """Check if URL is empty, whitespace-only, or a known placeholder."""
+    """Check if URL is empty, fixture/dummy, or a generic career page."""
+    if is_fixture_or_dummy_url(url):
+        return True
     url = (url or "").strip()
-    if not url:
-        return True
-    if url.lower().startswith(("javascript:", "mailto:", "data:", "#")):
-        return True
     try:
-        parsed = urlparse(url)
-        if not parsed.scheme or not parsed.netloc:
-            return True
-        netloc_lower = parsed.netloc.lower()
-        for bad in _BAD_URL_PATTERNS:
-            if bad in netloc_lower:
-                return True
         # Check if it's a generic career page (not a specific job)
         if _is_generic_career_page(url):
             return True

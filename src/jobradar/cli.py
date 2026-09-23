@@ -524,7 +524,7 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
     link_tests = [
         ("is_placeholder_url", "", True, "empty string"),
         ("is_placeholder_url", "TBD", True, "TBD placeholder"),
-        ("is_placeholder_url", "https://example.com/job", False, "valid URL"),
+        ("is_placeholder_url", "https://stripe.com/careers/job/1234", False, "real job URL"),
         ("is_specific_job_url", "https://stripe.com/careers", False, "generic career page"),
         ("is_specific_job_url", "https://stripe.com/careers/job/1234", True, "specific job page"),
     ]

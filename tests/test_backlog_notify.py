@@ -27,9 +27,12 @@ def test_url_quality_example_domains():
     """example.com and other bad patterns should fail quality check."""
     assert is_url_quality_good("https://example.com/job") is False
     assert is_url_quality_good("http://example.org/posting") is False
+    assert is_url_quality_good("https://example.net/posting") is False
     assert is_url_quality_good("https://test.com/job") is False
+    assert is_url_quality_good("https://test.org/job") is False
     assert is_url_quality_good("http://localhost:3000/job") is False
     assert is_url_quality_good("http://127.0.0.1:8080/job") is False
+    assert is_url_quality_good("http://0.0.0.0/job") is False
 
 
 def test_url_quality_good():

@@ -4,7 +4,26 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #39/#40 — Classification Recall + Stack Hygiene — COMPLETE
+## Latest: Overnight #41 — URL/Alert-Quality Harden — COMPLETE
+
+**Goal:** Tighten empty/placeholder/`example.com` (and similar fixture/dummy) URL gates end-to-end so bad/fixture URLs never reach Discord/ntfy/Telegram — including the company-name↔host match bypass beyond overnight #8/#9/#28.
+
+**Completed:**
+- **Shared fixture helper** `is_fixture_or_dummy_url` in `src/jobradar/models.py` (suffix-safe host match so `contest.com` ≠ `test.com`)
+- **Notify gate** `job_notify_block_reason` now blocks all fixture/dummy hosts with `fixture/dummy URL: …` *before* domain-match / specificity checks (closes company=`Test` + `test.com` / `Example` + `example.net` / `Localhost` bypass)
+- **`is_url_quality_good`** aligned to the shared helper; expanded `BAD_URL_PATTERNS` (`example.net`, `test.org`, `0.0.0.0`, …)
+- **`probe_url`** short-circuits fixture hosts locally (no HTTP — `example.com` can return 200)
+- **Parser ingest** still strips fixtures via `is_bad_url` → empty URL; regression covered
+- **Tests:** `tests/test_url_alert_quality_harden.py` + probe mocks retargeted off fixture hosts; CLI smoke test no longer treats `example.com` as a "valid URL"
+- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram sends this cycle.
+
+**Branch:** `overnight/41-url-alert-quality-harden`
+
+**Next suggested:** Product-completion tests (end-to-end product acceptance / completion coverage). Do NOT re-suggest URL/alert-quality harden, parser HTML/URL harden #28, classification recall, notify-window, classify-exclude, or scout-health (already landed).
+
+## Latest prior: Overnight #39/#40 — Classification Recall + Stack Hygiene — COMPLETE
+
+## Latest prior: Overnight #39/#40 — Classification Recall + Stack Hygiene — COMPLETE
 
 **Goal:** Land overnight #39 classification-recall feature (PR #57) and clear stack hygiene: close superseded PR #22; leave Gmail PR #23 untouched; refresh this handoff so Next no longer points at classification recall.
 

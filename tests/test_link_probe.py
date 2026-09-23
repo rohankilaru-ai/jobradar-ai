@@ -19,7 +19,7 @@ def test_is_placeholder_url():
     assert is_placeholder_url("N/A") is True
     assert is_placeholder_url("null") is True
     assert is_placeholder_url("not-a-url") is True
-    assert is_placeholder_url("https://example.com/job") is False
+    assert is_placeholder_url("https://jobs.acmecorp.dev/opening/probe") is False
 
 
 def test_probe_url_placeholder():
@@ -28,35 +28,44 @@ def test_probe_url_placeholder():
     assert probe_url("not-a-url") == "bad"
 
 
+def test_probe_url_fixture_hosts_short_circuit_without_http():
+    """Fixture hosts must be bad locally — example.com can return HTTP 200."""
+    assert probe_url("https://example.com/jobs/123") == "bad"
+    assert probe_url("https://example.net/jobs/abc") == "bad"
+    assert probe_url("https://test.com/jobs/1") == "bad"
+    assert probe_url("http://localhost:3000/jobs/1") == "bad"
+    assert probe_url("http://127.0.0.1/jobs/1") == "bad"
+
+
 def test_probe_url_good(respx_mock):
-    respx_mock.head("https://example.com/job").mock(return_value=httpx.Response(200))
-    assert probe_url("https://example.com/job") == "good"
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(return_value=httpx.Response(200))
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "good"
 
 
 def test_probe_url_redirect(respx_mock):
-    respx_mock.head("https://example.com/job").mock(return_value=httpx.Response(302))
-    assert probe_url("https://example.com/job") == "good"
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(return_value=httpx.Response(302))
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "good"
 
 
 def test_probe_url_bad_404(respx_mock):
-    respx_mock.head("https://example.com/job").mock(return_value=httpx.Response(404))
-    assert probe_url("https://example.com/job") == "bad"
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(return_value=httpx.Response(404))
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "bad"
 
 
 def test_probe_url_bad_500(respx_mock):
-    respx_mock.head("https://example.com/job").mock(return_value=httpx.Response(500))
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(return_value=httpx.Response(500))
     # 5xx is now treated as transient error, not permanent bad
-    assert probe_url("https://example.com/job") == "error"
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "error"
 
 
 def test_probe_url_timeout(respx_mock):
-    respx_mock.head("https://example.com/job").mock(side_effect=httpx.TimeoutException("timeout"))
-    assert probe_url("https://example.com/job") == "error"
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(side_effect=httpx.TimeoutException("timeout"))
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "error"
 
 
 def test_probe_url_network_error(respx_mock):
-    respx_mock.head("https://example.com/job").mock(side_effect=httpx.ConnectError("connection failed"))
-    assert probe_url("https://example.com/job") == "error"
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe").mock(side_effect=httpx.ConnectError("connection failed"))
+    assert probe_url("https://jobs.acmecorp.dev/opening/probe") == "error"
 
 
 def test_notify_with_probe_disabled(tmp_path, monkeypatch):
@@ -134,11 +143,11 @@ def test_verify_links_cli_with_urls(tmp_path, respx_mock, capsys):
     from jobradar.cli import cmd_verify_links
     import argparse
     
-    respx_mock.head("https://example.com/good").mock(return_value=httpx.Response(200))
-    respx_mock.head("https://example.com/bad").mock(return_value=httpx.Response(404))
+    respx_mock.head("https://jobs.acmecorp.dev/good").mock(return_value=httpx.Response(200))
+    respx_mock.head("https://jobs.acmecorp.dev/bad").mock(return_value=httpx.Response(404))
     
     args = argparse.Namespace(
-        urls=["https://example.com/good", "https://example.com/bad"],
+        urls=["https://jobs.acmecorp.dev/good", "https://jobs.acmecorp.dev/bad"],
         priority_only=False,
         limit=None,
         mark_bad=False,
@@ -165,21 +174,21 @@ def test_verify_links_cli_from_db(tmp_path, respx_mock, capsys, monkeypatch):
     job1 = JobRecord(
         company="CompanyA",
         title="Engineer A",
-        url="https://example.com/job1",
+        url="https://jobs.acmecorp.dev/opening/probe1",
         sources=["test"],
     )
     job2 = JobRecord(
         company="CompanyB",
         title="Engineer B",
-        url="https://example.com/job2",
+        url="https://jobs.acmecorp.dev/opening/probe2",
         sources=["test"],
     )
     
     db.upsert_job(job1)
     db.upsert_job(job2)
     
-    respx_mock.head("https://example.com/job1").mock(return_value=httpx.Response(200))
-    respx_mock.head("https://example.com/job2").mock(return_value=httpx.Response(404))
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe1").mock(return_value=httpx.Response(200))
+    respx_mock.head("https://jobs.acmecorp.dev/opening/probe2").mock(return_value=httpx.Response(404))
     
     args = argparse.Namespace(
         urls=None,
