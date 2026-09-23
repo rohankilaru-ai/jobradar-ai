@@ -4,7 +4,32 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #38 — Merge/Stack Hygiene (PR #55) — COMPLETE
+## Latest: Overnight #39/#40 — Classification Recall + Stack Hygiene — COMPLETE
+
+**Goal:** Land overnight #39 classification-recall feature (PR #57) and clear stack hygiene: close superseded PR #22; leave Gmail PR #23 untouched; refresh this handoff so Next no longer points at classification recall.
+
+**Completed:**
+- **PR #57 merged** ("Overnight #39: Classification recall for borderline technical roles") — squash-merged to main (`b2f9e9b`)
+- **PR #22 closed** ("Remove Discord per-scan alert cap") — superseded by PR #40; commented + closed, not merged
+- **PR #23 left open untouched** (Gmail/Notion inbox pack — Phase 4; standing skip)
+- **Local Mac checkout** fast-forwarded to `origin/main` at `b2f9e9b`
+- **Test suite at merge:** 643 tests passing (+11 classification-recall smokes)
+
+**Branch:** `cursor/overnight-39-classification-recall-d530` (PR #57) → squash-merged to main (`b2f9e9b`)
+
+**PR merged:**
+- **PR #55** already on main (overnight #37 scout health) via overnight #38 hygiene
+- **PR #57** ("Overnight #39: Classification recall…") — `strong_signals` overrides for Technical Account Manager / Technical Product Manager so exclude-list patterns do not drop borderline technical roles; 11 new tests in `tests/test_classify_dedupe_notify.py`
+
+**Remaining open PRs:**
+- **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
+- **PR #22** — CLOSED (superseded by #40).
+
+**Main tip after this hygiene:** `b2f9e9b` (was `ca49f86` / HANDOFF #56 before #57).
+
+**Next suggested:** URL/alert-quality harden — tighten empty/placeholder/`example.com` gates end-to-end (parser ingest + notify block reasons + regression tests) so bad/fixture URLs never reach Discord/ntfy/Telegram even when parsers or upstream HTML drift. Prefer test-driven gaps beyond overnight #8/#9/#28 already-landed coverage. Do NOT suggest already-landed work (classification recall, notify-window, classify-exclude, scout-health, parser HTML/URL harden #28).
+
+## Latest prior: Overnight #38 — Merge/Stack Hygiene (PR #55) — COMPLETE
 
 **Goal:** Merge/stack hygiene for overnight #37 draft PR #55 onto main. No new feature work. Mirror overnight #31/#34/#36 pattern.
 
@@ -24,7 +49,6 @@
 - **PR #22** ("Remove Discord per-scan alert cap") — superseded by PR #40 (unlimited alert cap default). Leave for user to close.
 - **PR #23** ("Local Mac inbox→Notion agent pack") — Gmail/Notion inbox pack (Phase 4). Left untouched per standing rules (skip all Gmail work).
 
-**Next suggested:** Classification recall improvements — review classify.py exclusion logic for borderline technical roles that may be incorrectly filtered (e.g., "Product Engineer", "Technical Program Manager", "Solutions Engineer"). Current exclude-list (overnight #32 / PR #50) is extensive; consider adding smoke tests for specific borderline titles to prevent false negatives. Non-Gmail, test-driven, improves notification recall. Do NOT suggest already-landed work (notify-window, classify-exclude, scout-health items are done).
 
 ## Latest prior: Overnight #37 — Scout Health Age/Staleness Surfacing (PR #55) — LANDED
 
