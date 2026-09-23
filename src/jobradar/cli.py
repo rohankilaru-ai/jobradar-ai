@@ -27,8 +27,22 @@ from jobradar.notify import (
 )
 from jobradar.pipeline import refresh_jobs, run_scan
 
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-load_dotenv()
+
+def _load_env() -> None:
+    """Load .env for CLI runs only — not at import time.
+
+    Importing ``jobradar.cli`` in tests must not leak local ``.env`` overrides
+    (e.g. ``JOBRADAR_NOTIFY_WINDOW_DAYS=3``) into ``os.environ`` and poison
+    later tests that expect code defaults (14-day window).
+
+    Tests that invoke ``main()`` set ``JOBRADAR_SKIP_DOTENV=1`` (see conftest)
+    so a deliberate ``delenv`` of Discord/Notion keys is not undone by dotenv.
+    """
+    skip = (os.environ.get("JOBRADAR_SKIP_DOTENV") or "").strip().lower()
+    if skip in {"1", "true", "yes", "on"}:
+        return
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+    load_dotenv()
 
 
 def cmd_health(_: argparse.Namespace) -> int:
@@ -466,7 +480,9 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
     print("=" * 50)
     print()
 
-    # Disable link probe for most validation tests (offline mode)
+    # Disable link probe for most validation tests (offline mode).
+    # Save/restore so this command does not permanently mutate process env.
+    _prev_probe = os.environ.get("JOBRADAR_LINK_PROBE")
     os.environ["JOBRADAR_LINK_PROBE"] = "0"
 
     passed = 0
@@ -722,6 +738,10 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
 
     print()
     print("=" * 50)
+    if _prev_probe is None:
+        os.environ.pop("JOBRADAR_LINK_PROBE", None)
+    else:
+        os.environ["JOBRADAR_LINK_PROBE"] = _prev_probe
     if failed == 0:
         print(f"All validation checks passed! ✨ ({passed}/{passed + failed})")
         return 0
@@ -835,6 +855,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    _load_env()
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "scan" and not (args.once or args.loop):
