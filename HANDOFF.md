@@ -4,19 +4,65 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #42 — Product-completion tests — COMPLETE
+## Latest: Overnight #46 — Product Spec Align → Product-Complete Yes — COMPLETE (Mac push needed)
 
-**Goal:** End-to-end product acceptance / completion coverage proving MVP priorities from PROJECT_SPEC (fast path without Grok keys; bad/fixture URLs never notify; 14-day window with older still stored; priority tagging; health CLI smoke).
+**Goal:** Close the two material gaps from overnight #45 by amending `PROJECT_SPEC.md` to match the shipped product (Discord/ntfy/Telegram; New-Grad optional), refresh the product-complete review to **Yes**, and drift-lock with tests. Keep #43+#45 in the same lineage. Leave PR #23 untouched. Do **not** implement Twilio or re-enable New-Grad.
 
 **Completed:**
-- **Acceptance suite** `tests/test_overnight_42_product_completion.py` (11 tests) — scan→classify→dedupe→persist→notify without Grok; empty/fixture URL hard-block; 14-day window store-vs-alert; `[PRIORITY]` tagging; recall-first classify; fuzzy dedupe; health CLI smoke; CLI-import must not leak `.env`
-- **Tiny production glue:** move `load_dotenv` from import-time into `cli.main()` / `_load_env()`; honor `JOBRADAR_SKIP_DOTENV=1` so tests calling `main()` do not re-apply local `.env` (which had `JOBRADAR_NOTIFY_WINDOW_DAYS=3` and live Discord/Notion keys); `cmd_validate_scan` save/restores `JOBRADAR_LINK_PROBE`
-- **conftest:** autouse sets `JOBRADAR_SKIP_DOTENV=1` and clears `JOBRADAR_NOTIFY_WINDOW_DAYS` so tests use the code default (14) unless they override
-- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram sends this cycle.
+- **PROJECT_SPEC.md:** SMS/Twilio removed as required alert channel; fast path / priorities / Grok Bots name Discord + ntfy + Telegram (+ JSONL mock); New-Grad marked optional / out of internship-MVP (disabled by default); SMS/Twilio listed under Out of MVP
+- **Review:** `docs/PRODUCT_COMPLETE_REVIEW.md` — Product-complete signal **Yes**; SMS and New-Grad rows reclassified **met (spec-aligned)**; material gaps closed by #46 amendment note
+- **Tests:** `tests/test_overnight_46_product_spec_align.py` (drift-locks for channels, no SMS/Twilio deliverable, New-Grad optional, review Yes); overnight #45 locks still pass
+- **Branch:** `overnight/46-product-spec-align` from #45 tip `ce3cb8a` (lineage: #43 + #45 + #46 on top of #42 / PR #60 / `1f8f463`)
+- **Pytest:** **720 passed** on box (`JOBRADAR_SKIP_DOTENV=1`)
+- **Blocked:** box has no GitHub push creds; Mac offline; CloudAgent usage exhausted — branch not pushed / PR not opened
+- **Artifacts for Mac resume:** `/workspace/MAC_FINISH_OVERNIGHT_46.sh` (preferred — applies #43+#45+#46 from main), bundles/patches under `/workspace/overnight-46-*` and format-patch
+- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram / no `scan --once` with alerts this cycle.
+- **Product-complete signal: Yes** — spec aligned to shipped Discord/ntfy/Telegram; New-Grad optional and remains disabled.
 
-**Branch:** `overnight/42-product-completion-tests`
+**Branch:** `overnight/46-product-spec-align` (local only until Mac push; contains #43 + #45 + #46)
 
-**Next suggested:** Live scan validation docs (operator runbook / harness docs for validating a real scan safely). Do NOT re-suggest product-completion tests, URL/alert-quality harden, parser HTML/URL harden #28, classification recall, notify-window, classify-exclude, or scout-health (already landed).
+**Next suggested:** When Mac returns (or CloudAgent usage restores), run `MAC_FINISH_OVERNIGHT_46.sh` to push one lineage PR for overnight/46 (combined #43+#45+#46) from main/`1f8f463`. Do NOT re-suggest already-landed work (URL/alert-quality #41, product-completion tests #42, live-scan validation #43, product-complete review #45, classification recall, notify-window, classify-exclude, scout-health, parser HTML/URL harden #28, PROJECT_SPEC SMS→Discord align #46). Leave PR #23 untouched.
+
+## Latest prior: Overnight #45 — Product-Complete MVP Review — PARTIAL (Mac push needed; superseded by #46 on same lineage)
+
+**Goal:** Product-complete MVP review on top of overnight #43 tip: honest `docs/PRODUCT_COMPLETE_REVIEW.md` checklist + thin acceptance locks for PROJECT_SPEC claims prior suites missed. No push (same blockers as #43/#44). Leave PR #23 untouched.
+
+**Completed:**
+- **Review doc:** `docs/PRODUCT_COMPLETE_REVIEW.md` — maps fast path, sources, dedupe, classify, alerts, SQLite, CLI, Docker, out-of-MVP (Gmail skipped), slow path → met / partial / gap with evidence
+- **Tests:** `tests/test_overnight_45_product_complete_review.py` (7 locks: Dockerfile/compose, SQLite tables, alert shape, MVP source catalog, CLI, Director 8s timeout)
+- **Branch:** `overnight/45-product-complete-review` from #43 tip `c4b53f4` (lineage includes live-scan validation + #42 product-completion tests)
+- **Pytest:** **715 passed** on box (`JOBRADAR_SKIP_DOTENV=1`)
+- **Blocked:** box has no GitHub push creds; Mac offline; CloudAgent usage exhausted — branch not pushed / PR not opened
+- **Artifacts for Mac resume:** `/workspace/overnight-45-product-complete-review.bundle`, `/workspace/0001-Overnight-45-Product-complete-review.patch`, `/workspace/MAC_FINISH_OVERNIGHT_45.sh` (applies #43+#45 lineage as one PR) — prefer `MAC_FINISH_OVERNIGHT_46.sh` once #46 is ready
+- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram / no `scan --once` with alerts this cycle.
+- **Product-complete signal: No** (at #45) — SMS/Twilio still absent vs literal PROJECT_SPEC; Simplify New-Grad source intentionally disabled. Closed by overnight #46 spec amend → Yes.
+
+**Branch:** `overnight/45-product-complete-review` (local only until Mac push; contains #43 + #45; tip included in #46 lineage)
+
+**Next suggested:** Superseded by overnight #46 — use `MAC_FINISH_OVERNIGHT_46.sh` for combined #43+#45+#46 push.
+
+## Latest prior: Overnight #44 — Stack Hygiene — PARTIAL (Mac push needed for #43)
+
+
+**Goal:** Merge open overnight PR #60 (product-completion tests) onto main, then land overnight #43 live-scan validation docs/harness on top. Leave PR #23 untouched.
+
+**Completed:**
+- **PR #60 squash-merged** to main (`1f8f463`) — Overnight #42 product-completion tests (CI was green)
+- **Overnight #43 rebased** onto post-#60 main as commit `b14f487` on branch `overnight/43-live-scan-validation-docs`: conflict markers cleaned in `docs/LIVE_SCAN_VALIDATION.md`; docs/harness/drift-lock refresh; **708 pytest passed** on box
+- **Blocked:** box has no GitHub push creds; Mac offline; CloudAgent usage exhausted — branch not pushed / PR not opened yet
+- **Artifacts for Mac resume:** `/workspace/overnight-43-live-scan-validation.bundle`, `/workspace/0001-Overnight-43-Live-scan-validation-docs-harness-refre.patch`, `/workspace/MAC_FINISH_OVERNIGHT_43.sh`
+- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram / no `scan --once` with alerts this cycle.
+
+**Branch:** `overnight/43-live-scan-validation-docs` (local only until Mac push)
+
+**Next suggested:** When Mac returns, run `MAC_FINISH_OVERNIGHT_43.sh` (or copy bundle/patch to `/tmp` and push + `gh pr create`), then merge #43. After that: product-complete review. Do NOT re-suggest already-landed feature work (URL/alert-quality harden #41, product-completion tests #42, live-scan validation docs #43, classification recall, notify-window, classify-exclude, scout-health, parser HTML/URL harden #28).
+
+## Latest prior: Overnight #42 — Product-Completion / MVP Acceptance Tests — COMPLETE (MERGED)
+
+**Goal:** End-to-end product acceptance / completion coverage (fast path without Grok, fixture/empty URL hard-block, 14-day store-vs-alert, priority tagging, recall-first, dedupe, health CLI, dotenv isolation).
+
+**Status:** Squash-merged as PR #60 → main tip `1f8f463`. Dotenv isolation glue (`_load_env` / `JOBRADAR_SKIP_DOTENV` / conftest) is on main.
+
 
 ## Latest prior: Overnight #41 — URL/Alert-Quality Harden — COMPLETE
 
@@ -30,12 +76,9 @@
 - **Parser ingest** still strips fixtures via `is_bad_url` → empty URL; regression covered
 - **Tests:** `tests/test_url_alert_quality_harden.py` + probe mocks retargeted off fixture hosts; CLI smoke test no longer treats `example.com` as a "valid URL"
 - **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram sends this cycle.
+- **Merged to main** as PR #59 (`10f9a3c`)
 
 **Branch:** `overnight/41-url-alert-quality-harden`
-
-**Next suggested:** Product-completion tests (end-to-end product acceptance / completion coverage). Do NOT re-suggest URL/alert-quality harden, parser HTML/URL harden #28, classification recall, notify-window, classify-exclude, or scout-health (already landed).
-
-## Latest prior: Overnight #39/#40 — Classification Recall + Stack Hygiene — COMPLETE
 
 ## Latest prior: Overnight #39/#40 — Classification Recall + Stack Hygiene — COMPLETE
 
