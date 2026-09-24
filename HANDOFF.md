@@ -4,7 +4,23 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #56 — Stack Hygiene (PR #64 merged) — COMPLETE
+## Latest: Overnight #57 — Stack Hygiene (PR #65 merged) — COMPLETE
+
+**Goal:** Squash-merge green PR #65 (overnight #56 HANDOFF hygiene + drift-lock tests) onto main; refresh this handoff so Latest records the merge and Next stays post-MVP Rohan/Director ops only. Leave PR #23 untouched. No new feature work.
+
+**Completed:**
+- **PR #65 squash-merged** to main (`15b3a4717ac95a7513cf7475941dac8505abbd1f`) — Overnight #56 HANDOFF stack hygiene + drift-lock tests (CI test checks SUCCESS before merge)
+- **Local Mac checkout** fast-forwarded to `origin/main` at `15b3a47`
+- **CloudAgent** still usage-exhausted (on-demand needed); Mac path used for merge + this HANDOFF refresh
+- **Pytest:** **735 passed** on Mac (`JOBRADAR_SKIP_DOTENV=1`) for this refresh; suite remains green
+- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram / no `scan --once` with alerts this cycle.
+- **Product-complete signal: Yes** (unchanged; already on main via #61)
+
+**Branch:** `overnight/57-handoff-hygiene` (HANDOFF refresh only)
+
+**Next suggested:** Post-MVP priorities for Rohan/Director only — e.g. Grok Bot Director webhook URL when UI exposes it, cloud-scan GitHub Actions secrets, optional 24/7 scan ops. Do NOT invent overnight feature work. Do NOT re-suggest already-landed work (URL/alert-quality #41, product-completion tests #42, live-scan validation #43, product-complete review #45, PROJECT_SPEC SMS→Discord align #46 / PR #61, HANDOFF hygiene #53 / PR #62, HANDOFF hygiene #54 / PR #63, HANDOFF hygiene #55 / PR #64, HANDOFF hygiene #56 / PR #65, classification recall, notify-window, classify-exclude, scout-health, parser HTML/URL harden #28). Leave PR #23 untouched. Skip all Gmail setup/Inbox wakes.
+
+## Latest prior: Overnight #56 — Stack Hygiene (PR #64 merged) — COMPLETE
 
 **Goal:** Squash-merge green PR #64 (overnight #55 HANDOFF hygiene + drift-lock tests) onto main; refresh this handoff so Latest records the merge and Next stays post-MVP Rohan/Director ops only. Leave PR #23 untouched. No new feature work.
 
@@ -18,7 +34,7 @@
 
 **Branch:** `overnight/56-handoff-hygiene` (HANDOFF refresh only)
 
-**Next suggested:** Post-MVP priorities for Rohan/Director only — e.g. Grok Bot Director webhook URL when UI exposes it, cloud-scan GitHub Actions secrets, optional 24/7 scan ops. Do NOT invent overnight feature work. Do NOT re-suggest already-landed work (URL/alert-quality #41, product-completion tests #42, live-scan validation #43, product-complete review #45, PROJECT_SPEC SMS→Discord align #46 / PR #61, HANDOFF hygiene #53 / PR #62, HANDOFF hygiene #54 / PR #63, HANDOFF hygiene #55 / PR #64, classification recall, notify-window, classify-exclude, scout-health, parser HTML/URL harden #28). Leave PR #23 untouched. Skip all Gmail setup/Inbox wakes.
+**Next suggested:** Superseded by overnight #57 stack hygiene (HANDOFF refresh). Do NOT invent overnight feature work. Leave PR #23 untouched.
 
 ## Latest prior: Overnight #55 — Stack Hygiene (PR #63 merged) — COMPLETE
 
