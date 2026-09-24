@@ -4,7 +4,26 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #45 — Product-Complete MVP Review — PARTIAL (Mac push needed)
+## Latest: Overnight #46 — Product Spec Align → Product-Complete Yes — COMPLETE (Mac push needed)
+
+**Goal:** Close the two material gaps from overnight #45 by amending `PROJECT_SPEC.md` to match the shipped product (Discord/ntfy/Telegram; New-Grad optional), refresh the product-complete review to **Yes**, and drift-lock with tests. Keep #43+#45 in the same lineage. Leave PR #23 untouched. Do **not** implement Twilio or re-enable New-Grad.
+
+**Completed:**
+- **PROJECT_SPEC.md:** SMS/Twilio removed as required alert channel; fast path / priorities / Grok Bots name Discord + ntfy + Telegram (+ JSONL mock); New-Grad marked optional / out of internship-MVP (disabled by default); SMS/Twilio listed under Out of MVP
+- **Review:** `docs/PRODUCT_COMPLETE_REVIEW.md` — Product-complete signal **Yes**; SMS and New-Grad rows reclassified **met (spec-aligned)**; material gaps closed by #46 amendment note
+- **Tests:** `tests/test_overnight_46_product_spec_align.py` (drift-locks for channels, no SMS/Twilio deliverable, New-Grad optional, review Yes); overnight #45 locks still pass
+- **Branch:** `overnight/46-product-spec-align` from #45 tip `ce3cb8a` (lineage: #43 + #45 + #46 on top of #42 / PR #60 / `1f8f463`)
+- **Pytest:** **720 passed** on box (`JOBRADAR_SKIP_DOTENV=1`)
+- **Blocked:** box has no GitHub push creds; Mac offline; CloudAgent usage exhausted — branch not pushed / PR not opened
+- **Artifacts for Mac resume:** `/workspace/MAC_FINISH_OVERNIGHT_46.sh` (preferred — applies #43+#45+#46 from main), bundles/patches under `/workspace/overnight-46-*` and format-patch
+- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram / no `scan --once` with alerts this cycle.
+- **Product-complete signal: Yes** — spec aligned to shipped Discord/ntfy/Telegram; New-Grad optional and remains disabled.
+
+**Branch:** `overnight/46-product-spec-align` (local only until Mac push; contains #43 + #45 + #46)
+
+**Next suggested:** When Mac returns (or CloudAgent usage restores), run `MAC_FINISH_OVERNIGHT_46.sh` to push one lineage PR for overnight/46 (combined #43+#45+#46) from main/`1f8f463`. Do NOT re-suggest already-landed work (URL/alert-quality #41, product-completion tests #42, live-scan validation #43, product-complete review #45, classification recall, notify-window, classify-exclude, scout-health, parser HTML/URL harden #28, PROJECT_SPEC SMS→Discord align #46). Leave PR #23 untouched.
+
+## Latest prior: Overnight #45 — Product-Complete MVP Review — PARTIAL (Mac push needed; superseded by #46 on same lineage)
 
 **Goal:** Product-complete MVP review on top of overnight #43 tip: honest `docs/PRODUCT_COMPLETE_REVIEW.md` checklist + thin acceptance locks for PROJECT_SPEC claims prior suites missed. No push (same blockers as #43/#44). Leave PR #23 untouched.
 
@@ -14,13 +33,13 @@
 - **Branch:** `overnight/45-product-complete-review` from #43 tip `c4b53f4` (lineage includes live-scan validation + #42 product-completion tests)
 - **Pytest:** **715 passed** on box (`JOBRADAR_SKIP_DOTENV=1`)
 - **Blocked:** box has no GitHub push creds; Mac offline; CloudAgent usage exhausted — branch not pushed / PR not opened
-- **Artifacts for Mac resume:** `/workspace/overnight-45-product-complete-review.bundle`, `/workspace/0001-Overnight-45-Product-complete-review.patch`, `/workspace/MAC_FINISH_OVERNIGHT_45.sh` (applies #43+#45 lineage as one PR)
+- **Artifacts for Mac resume:** `/workspace/overnight-45-product-complete-review.bundle`, `/workspace/0001-Overnight-45-Product-complete-review.patch`, `/workspace/MAC_FINISH_OVERNIGHT_45.sh` (applies #43+#45 lineage as one PR) — prefer `MAC_FINISH_OVERNIGHT_46.sh` once #46 is ready
 - **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram / no `scan --once` with alerts this cycle.
-- **Product-complete signal: No** — SMS/Twilio still absent vs literal PROJECT_SPEC; Simplify New-Grad source intentionally disabled (internships-only). Fast-path MVP otherwise substantially complete.
+- **Product-complete signal: No** (at #45) — SMS/Twilio still absent vs literal PROJECT_SPEC; Simplify New-Grad source intentionally disabled. Closed by overnight #46 spec amend → Yes.
 
-**Branch:** `overnight/45-product-complete-review` (local only until Mac push; contains #43 + #45)
+**Branch:** `overnight/45-product-complete-review` (local only until Mac push; contains #43 + #45; tip included in #46 lineage)
 
-**Next suggested:** When Mac returns, run `MAC_FINISH_OVERNIGHT_45.sh` (preferred — one PR with #43+#45) or `MAC_FINISH_OVERNIGHT_43.sh` then push #45. Do NOT re-suggest already-landed feature work (URL/alert-quality #41, product-completion tests #42, live-scan validation #43, classification recall, notify-window, classify-exclude, scout-health, parser HTML/URL harden #28). Optional follow-up after merge: amend PROJECT_SPEC (SMS→Discord/ntfy/Telegram; New-Grad optional) or implement Twilio if SMS remains a real requirement.
+**Next suggested:** Superseded by overnight #46 — use `MAC_FINISH_OVERNIGHT_46.sh` for combined #43+#45+#46 push.
 
 ## Latest prior: Overnight #44 — Stack Hygiene — PARTIAL (Mac push needed for #43)
 

@@ -1,11 +1,11 @@
-# Product-Complete MVP Review (Overnight #45)
+# Product-Complete MVP Review (Overnight #45 + #46)
 
 Honest checklist mapping `PROJECT_SPEC.md` MVP requirements to evidence.
 Status values: **met** | **partial** | **gap** | **out-of-MVP (skipped)**.
 
-**Review base:** branch `overnight/45-product-complete-review` on tip including overnight #43 (`c4b53f4`) + #42 product-completion tests (PR #60).  
+**Review base:** branch `overnight/46-product-spec-align` tip (lineage: overnight #43 live-scan docs + #45 product-complete review + #46 PROJECT_SPEC align, on top of #42 / PR #60).  
 **Date:** 2026-09-24 (PT).  
-**Product-complete signal:** **No** — see Material gaps. Core fast-path MVP is largely implemented and acceptance-tested; two intentional/spec-drift items remain.
+**Product-complete signal:** **Yes** — overnight #46 amended `PROJECT_SPEC.md` so literal requirements match the shipped product (Discord/ntfy/Telegram + optional New-Grad). No Twilio implementation; New-Grad left disabled.
 
 ---
 
@@ -14,10 +14,10 @@ Status values: **met** | **partial** | **gap** | **out-of-MVP (skipped)**.
 | Area | Status |
 |------|--------|
 | Fast path (never blocked by Grok) | met |
-| Sources (JSON + Markdown catalog) | partial |
+| Sources (JSON + Markdown catalog) | met |
 | Dedupe | met |
 | Classify (recall-first) | met |
-| Alerts (format, priority, idempotent, mock) | partial |
+| Alerts (format, priority, idempotent, mock) | met |
 | SQLite schema | met |
 | CLI (`scan` / `health` / `ping-grok`) | met |
 | Docker | met |
@@ -28,7 +28,7 @@ Status values: **met** | **partial** | **gap** | **out-of-MVP (skipped)**.
 
 ## 1. Fast path (never blocked)
 
-**Spec:** GitHub sources → normalize → rule dedupe → rule classify → SQLite → SMS + Discord (mock JSONL until keys). Never block on Grok/LLM/missing keys.
+**Spec:** GitHub sources → normalize → rule dedupe → rule classify → SQLite → Discord + ntfy + Telegram (mock JSONL until keys). Never block on Grok/LLM/missing keys.
 
 | Claim | Status | Evidence | Gap |
 |-------|--------|----------|-----|
@@ -42,7 +42,8 @@ Status values: **met** | **partial** | **gap** | **out-of-MVP (skipped)**.
 ## 2. Sources (MVP)
 
 **Spec JSON:** `aprameyak/2027-tech-jobs`, `dreamworkhq/Tech-Internships-2027`, `ApplyGuy/2027-Internships`.  
-**Spec Markdown:** Simplify Summer + Off-Season, Simplify New-Grad, vanshb03, speedyapply SWE + AI (README + INTERN_INTL; NEW_GRAD_* excluded).  
+**Spec Markdown (required):** Simplify Summer + Off-Season, vanshb03, speedyapply SWE + AI (README + INTERN_INTL; NEW_GRAD_* excluded).  
+**Optional / out of internship-MVP:** `SimplifyJobs/New-Grad-Positions` — disabled by default; not a required MVP source (#46 PROJECT_SPEC amendment).  
 **Ban:** do not scrape `pittcsc/Summer2027-Internships`. Backfill 14 days for notify; older still stored.
 
 | Claim | Status | Evidence | Gap |
@@ -50,7 +51,7 @@ Status values: **met** | **partial** | **gap** | **out-of-MVP (skipped)**.
 | Core JSON + internship MD sources present | **met** | `src/jobradar/sources.py` SOURCES; `tests/test_sources_policy.py`; overnight #45 catalog lock | — |
 | speedyapply AI intern sources (not NEW_GRAD_*) | **met** | `test_sources_policy.py::test_speedyapply_ai_*` | — |
 | pittcsc banned | **met** | `test_sources_policy.py`, `test_live_scan.py`, harness drift-lock | — |
-| `SimplifyJobs/New-Grad-Positions` | **partial** | Commented out in `sources.py` (“internships only”); locked by `test_newgrad_sources_disabled` | Literal PROJECT_SPEC lists New-Grad; product intentionally disables it |
+| `SimplifyJobs/New-Grad-Positions` | **met** (spec-aligned optional) | Commented out in `sources.py` (“internships only”); locked by `test_newgrad_sources_disabled`; PROJECT_SPEC (#46) marks optional / out of internship-MVP | — |
 | 14-day notify / older stored | **met** | `NOTIFY_WINDOW_DAYS==14`; `test_overnight_42…::test_fourteen_day_window_old_stored_not_alerted`; notify-window drift-lock tests | — |
 | ETag / fetch_cache | **met** | `fetch_cache` table + scout cache tests (`tests/test_scout.py`) | — |
 
@@ -96,8 +97,8 @@ Priority → `[PRIORITY]`. Cooldown 0. Never notify twice. Mock → `data/notifi
 | Priority company list | **met** | `classify.PRIORITY_COMPANIES` matches PROJECT_SPEC (24 names) | — |
 | Never notify twice (idempotent) | **met** | `notifications.canonical_key` unique; `test_product_completion.py::test_notify_idempotency_*` | — |
 | Bad/empty/fixture URLs never alert | **met** | overnight #41/#42 URL gates; `job_notify_block_reason` | — |
-| Discord / ntfy / Telegram + JSONL mock | **met** | `notify.py` adapters; product-completion suites | — |
-| **SMS / Twilio** | **partial / gap** | No Twilio/SMS adapter in codebase | Spec still says “SMS + Discord”; product evolved to Discord/ntfy/Telegram + JSONL. Material vs literal spec; not blocking Discord/ntfy path |
+| Discord / ntfy / Telegram + JSONL mock | **met** | `notify.py` adapters; product-completion suites; PROJECT_SPEC (#46) names these channels | — |
+| SMS / Twilio | **met** (spec-aligned out-of-MVP) | Not a deliverable; PROJECT_SPEC (#46) lists SMS/Twilio under Out of MVP; phone push is ntfy/Telegram | — |
 | Cooldown 0 | **met** | No cooldown delay; idempotency via `was_notified` only | — |
 
 ---
@@ -138,13 +139,14 @@ Priority → `[PRIORITY]`. Cooldown 0. Never notify twice. Mock → `data/notifi
 
 ## 9. Out of MVP / boundaries
 
-**Spec out-of-MVP:** auto-apply, heavy frontend, career-page HTML scrape, newsletters, **Gmail**, awesome-job-boards crawl, `github.com/topics/job-board`.
+**Spec out-of-MVP:** auto-apply, heavy frontend, career-page HTML scrape, newsletters, **Gmail**, awesome-job-boards crawl, `github.com/topics/job-board`, SMS/Twilio.
 
 | Claim | Status | Evidence | Gap |
 |-------|--------|----------|-----|
 | Phase 4 Gmail not required for MVP | **out-of-MVP (skipped)** | Standing skip; PR #23 left untouched; no Gmail work this cycle | Do not treat open PR #23 as MVP blocker |
 | No auto-apply | **met** | No auto-apply path in pipeline | — |
 | pittcsc not scraped | **met** | sources policy tests | — |
+| SMS/Twilio not required | **met** | PROJECT_SPEC (#46) Out of MVP; ntfy/Telegram for phone push | — |
 
 ---
 
@@ -161,10 +163,12 @@ Priority → `[PRIORITY]`. Cooldown 0. Never notify twice. Mock → `data/notifi
 
 ## Material gaps (honest)
 
-1. **SMS/Twilio absent** — PROJECT_SPEC still names SMS; implementation is Discord/ntfy/Telegram + JSONL mock. Treat as **spec drift / partial**, not a Discord-path blocker. Closing it means either implement Twilio or update PROJECT_SPEC.
-2. **Simplify New-Grad source disabled** — listed in PROJECT_SPEC sources, intentionally commented out for internships-only. **Intentional partial**; do not re-enable without product decision.
+**None remaining for MVP.** Overnight #46 closed the two #45 material gaps by amending PROJECT_SPEC (not by implementing Twilio or re-enabling New-Grad):
 
-No other material MVP implementation gaps found for the fast path, dedupe, classify, SQLite, CLI, Docker, or alert quality gates under current product interpretation.
+1. ~~SMS/Twilio absent~~ → **resolved (spec-aligned):** PROJECT_SPEC now requires Discord + ntfy + Telegram (+ JSONL mock); SMS/Twilio is Out of MVP.
+2. ~~Simplify New-Grad source disabled~~ → **resolved (spec-aligned):** PROJECT_SPEC marks New-Grad optional / out of internship-MVP; product correctly leaves it disabled.
+
+No other material MVP implementation gaps found for the fast path, dedupe, classify, SQLite, CLI, Docker, or alert quality gates.
 
 ---
 
@@ -175,9 +179,10 @@ No other material MVP implementation gaps found for the fast path, dedupe, class
 - `tests/test_overnight_29_product_completion.py` — quality-gate stack integration
 - `tests/test_product.py` — thin DB/adapter smokes
 - `tests/test_overnight_45_product_complete_review.py` — review locks (Docker, schema tables, alert shape, MVP source catalog, CLI)
+- `tests/test_overnight_46_product_spec_align.py` — PROJECT_SPEC drift-locks (no SMS/Twilio deliverable; New-Grad optional; Discord/ntfy/Telegram named)
 - `docs/LIVE_SCAN_VALIDATION.md` — operator live/offline validation (#43)
 
 ## Verdict
 
-**Product-complete signal: No.**  
-Fast-path MVP is substantially complete and heavily tested, but the review will not claim “product-complete” while SMS remains a literal PROJECT_SPEC deliverable and New-Grad remains a listed-but-disabled source without an explicit PROJECT_SPEC amendment.
+**Product-complete signal: Yes.**  
+Fast-path MVP matches amended PROJECT_SPEC (#46). Discord/ntfy/Telegram + JSONL mock are the alert channels; New-Grad is optional/out-of-internship-MVP and remains disabled. Gmail (PR #23) stays out-of-MVP / untouched.

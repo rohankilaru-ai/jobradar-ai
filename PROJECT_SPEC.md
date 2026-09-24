@@ -7,14 +7,14 @@ Targets: SWE, DS, DE, ML, AI research, quant, infra, applied AI.
 
 1. **Notification speed** — never block alerts on Grok Bots, LLM calls, or missing API keys.
 2. False positives OK. Missed jobs not OK.
-3. No auto-apply. No email alerts. Python owns SMS/Discord (mock JSONL until keys exist).
+3. No auto-apply. No email alerts. Python owns Discord / ntfy / Telegram (mock JSONL until keys exist).
 
 ## Architecture
 
 ### Fast path (never blocked)
 
-GitHub sources → normalize → rule dedupe → rule classify → SQLite → SMS + Discord
-(mock → `data/notifications.jsonl` until Twilio/Discord keys exist).
+GitHub sources → normalize → rule dedupe → rule classify → SQLite → Discord + ntfy + Telegram
+(mock → `data/notifications.jsonl` until Discord/ntfy/Telegram keys exist).
 
 ### Slow path (best-effort)
 
@@ -32,10 +32,13 @@ JSON first:
 Markdown tables (`raw.githubusercontent.com`, ETag cache):
 
 - `SimplifyJobs/Summer2027-Internships` (`dev`) — `README.md`, `README-Off-Season.md` (skip Inactive)
-- `SimplifyJobs/New-Grad-Positions` (`dev`)
 - `vanshb03/Summer2027-Internships` (`dev`) — handle `↳` inherit company
 - `speedyapply/2027-SWE-College-Jobs` (`main`) — `README.md`, `INTERN_INTL.md`
 - `speedyapply/2027-AI-College-Jobs` (`main`) — `README.md`, `INTERN_INTL.md` (internship only; NEW_GRAD_* excluded)
+
+**Optional / out of internship-MVP (disabled by default):**
+
+- `SimplifyJobs/New-Grad-Positions` (`dev`) — not a required MVP source; internships-only product leaves it commented out in `sources.py`. Do not re-enable without an explicit product decision.
 
 **Do not scrape** `pittcsc/Summer2027-Internships` (stale Simplify fork).
 
@@ -89,8 +92,8 @@ python -m jobradar ping-grok
 ## Out of MVP
 
 Auto-apply, heavy frontend, career-page HTML scrape, newsletters, Gmail, awesome-job-boards crawl,
-`github.com/topics/job-board`.
+`github.com/topics/job-board`, SMS/Twilio (not used — phone push is ntfy/Telegram).
 
 ## Grok Bots
 
-Run on Rohan's Mac. Missing bots must not stop SMS/Discord. Specs live in `agents/grok/`.
+Run on Rohan's Mac. Missing bots must not stop Discord/ntfy/Telegram. Specs live in `agents/grok/`.
