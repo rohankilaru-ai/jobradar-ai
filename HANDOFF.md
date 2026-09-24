@@ -4,7 +4,26 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #44 — Stack Hygiene — PARTIAL (Mac push needed for #43)
+## Latest: Overnight #45 — Product-Complete MVP Review — PARTIAL (Mac push needed)
+
+**Goal:** Product-complete MVP review on top of overnight #43 tip: honest `docs/PRODUCT_COMPLETE_REVIEW.md` checklist + thin acceptance locks for PROJECT_SPEC claims prior suites missed. No push (same blockers as #43/#44). Leave PR #23 untouched.
+
+**Completed:**
+- **Review doc:** `docs/PRODUCT_COMPLETE_REVIEW.md` — maps fast path, sources, dedupe, classify, alerts, SQLite, CLI, Docker, out-of-MVP (Gmail skipped), slow path → met / partial / gap with evidence
+- **Tests:** `tests/test_overnight_45_product_complete_review.py` (7 locks: Dockerfile/compose, SQLite tables, alert shape, MVP source catalog, CLI, Director 8s timeout)
+- **Branch:** `overnight/45-product-complete-review` from #43 tip `c4b53f4` (lineage includes live-scan validation + #42 product-completion tests)
+- **Pytest:** **715 passed** on box (`JOBRADAR_SKIP_DOTENV=1`)
+- **Blocked:** box has no GitHub push creds; Mac offline; CloudAgent usage exhausted — branch not pushed / PR not opened
+- **Artifacts for Mac resume:** `/workspace/overnight-45-product-complete-review.bundle`, `/workspace/0001-Overnight-45-Product-complete-review.patch`, `/workspace/MAC_FINISH_OVERNIGHT_45.sh` (applies #43+#45 lineage as one PR)
+- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram / no `scan --once` with alerts this cycle.
+- **Product-complete signal: No** — SMS/Twilio still absent vs literal PROJECT_SPEC; Simplify New-Grad source intentionally disabled (internships-only). Fast-path MVP otherwise substantially complete.
+
+**Branch:** `overnight/45-product-complete-review` (local only until Mac push; contains #43 + #45)
+
+**Next suggested:** When Mac returns, run `MAC_FINISH_OVERNIGHT_45.sh` (preferred — one PR with #43+#45) or `MAC_FINISH_OVERNIGHT_43.sh` then push #45. Do NOT re-suggest already-landed feature work (URL/alert-quality #41, product-completion tests #42, live-scan validation #43, classification recall, notify-window, classify-exclude, scout-health, parser HTML/URL harden #28). Optional follow-up after merge: amend PROJECT_SPEC (SMS→Discord/ntfy/Telegram; New-Grad optional) or implement Twilio if SMS remains a real requirement.
+
+## Latest prior: Overnight #44 — Stack Hygiene — PARTIAL (Mac push needed for #43)
+
 
 **Goal:** Merge open overnight PR #60 (product-completion tests) onto main, then land overnight #43 live-scan validation docs/harness on top. Leave PR #23 untouched.
 
