@@ -4,7 +4,22 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #46 — Product Spec Align → Product-Complete Yes — COMPLETE (Mac push needed)
+## Latest: Overnight #53 — Stack Hygiene (PR #61 merged) — COMPLETE
+
+**Goal:** Stack hygiene after overnight #52 opened PR #61 for the overnight #46 lineage (#43+#45+#46). Squash-merge green PR #61 onto main; refresh this handoff so Next no longer says Mac push needed. Leave PR #23 untouched. No new feature work.
+
+**Completed:**
+- **PR #61 squash-merged** to main (`271d6ed`) — Overnight #43+#45+#46: Live-scan validation docs/harness + product-complete MVP review + PROJECT_SPEC Discord/ntfy/Telegram align → **product-complete Yes** (CI test checks SUCCESS before merge)
+- **Local Mac checkout** fast-forwarded to `origin/main` at `271d6ed`
+- **CloudAgent** still usage-exhausted (on-demand needed); Mac path used for merge + this HANDOFF refresh
+- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram / no `scan --once` with alerts this cycle.
+- **Product-complete signal: Yes** (unchanged; now on main)
+
+**Branch:** `overnight/53-handoff-hygiene` (HANDOFF refresh only)
+
+**Next suggested:** Post-MVP priorities for Rohan/Director only — e.g. Grok Bot Director webhook URL when UI exposes it, cloud-scan GitHub Actions secrets, optional 24/7 scan ops. Do NOT re-suggest already-landed work (URL/alert-quality #41, product-completion tests #42, live-scan validation #43, product-complete review #45, PROJECT_SPEC SMS→Discord align #46 / PR #61, classification recall, notify-window, classify-exclude, scout-health, parser HTML/URL harden #28). Leave PR #23 untouched. Skip all Gmail setup/Inbox wakes.
+
+## Latest prior: Overnight #46 — Product Spec Align → Product-Complete Yes — COMPLETE (MERGED via PR #61)
 
 **Goal:** Close the two material gaps from overnight #45 by amending `PROJECT_SPEC.md` to match the shipped product (Discord/ntfy/Telegram; New-Grad optional), refresh the product-complete review to **Yes**, and drift-lock with tests. Keep #43+#45 in the same lineage. Leave PR #23 untouched. Do **not** implement Twilio or re-enable New-Grad.
 
@@ -12,16 +27,15 @@
 - **PROJECT_SPEC.md:** SMS/Twilio removed as required alert channel; fast path / priorities / Grok Bots name Discord + ntfy + Telegram (+ JSONL mock); New-Grad marked optional / out of internship-MVP (disabled by default); SMS/Twilio listed under Out of MVP
 - **Review:** `docs/PRODUCT_COMPLETE_REVIEW.md` — Product-complete signal **Yes**; SMS and New-Grad rows reclassified **met (spec-aligned)**; material gaps closed by #46 amendment note
 - **Tests:** `tests/test_overnight_46_product_spec_align.py` (drift-locks for channels, no SMS/Twilio deliverable, New-Grad optional, review Yes); overnight #45 locks still pass
-- **Branch:** `overnight/46-product-spec-align` from #45 tip `ce3cb8a` (lineage: #43 + #45 + #46 on top of #42 / PR #60 / `1f8f463`)
-- **Pytest:** **720 passed** on box (`JOBRADAR_SKIP_DOTENV=1`)
-- **Blocked:** box has no GitHub push creds; Mac offline; CloudAgent usage exhausted — branch not pushed / PR not opened
-- **Artifacts for Mac resume:** `/workspace/MAC_FINISH_OVERNIGHT_46.sh` (preferred — applies #43+#45+#46 from main), bundles/patches under `/workspace/overnight-46-*` and format-patch
-- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram / no `scan --once` with alerts this cycle.
-- **Product-complete signal: Yes** — spec aligned to shipped Discord/ntfy/Telegram; New-Grad optional and remains disabled.
+- **Lineage:** #43 + #45 + #46 on top of #42 / PR #60 / `1f8f463`
+- **Pushed** by overnight #52 (Mac) as branch `overnight/46-product-spec-align` tip `9348610`; **PR #61** opened then squash-merged by overnight #53 → main `271d6ed`
+- **Pytest at land:** **720 passed** (`JOBRADAR_SKIP_DOTENV=1`)
+- **PR #23 left untouched** (Gmail pack). No live alerts.
+- **Product-complete signal: Yes**
 
-**Branch:** `overnight/46-product-spec-align` (local only until Mac push; contains #43 + #45 + #46)
+**Branch:** `overnight/46-product-spec-align` → squash-merged via PR #61
 
-**Next suggested:** When Mac returns (or CloudAgent usage restores), run `MAC_FINISH_OVERNIGHT_46.sh` to push one lineage PR for overnight/46 (combined #43+#45+#46) from main/`1f8f463`. Do NOT re-suggest already-landed work (URL/alert-quality #41, product-completion tests #42, live-scan validation #43, product-complete review #45, classification recall, notify-window, classify-exclude, scout-health, parser HTML/URL harden #28, PROJECT_SPEC SMS→Discord align #46). Leave PR #23 untouched.
+**Next suggested:** Superseded by overnight #53 stack hygiene (HANDOFF refresh). Do NOT re-suggest already-landed work listed above.
 
 ## Latest prior: Overnight #45 — Product-Complete MVP Review — PARTIAL (Mac push needed; superseded by #46 on same lineage)
 
