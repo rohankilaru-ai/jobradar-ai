@@ -1,4 +1,8 @@
-"""Overnight #53: HANDOFF stack-hygiene drift locks after PR #61 merge."""
+"""Overnight #53: HANDOFF stack-hygiene drift locks after PR #61 merge.
+
+After overnight #54, the #53 section lives under Latest prior; assertions
+still lock the historical #53 record and shared product-complete guards.
+"""
 
 from pathlib import Path
 
@@ -10,8 +14,8 @@ def _latest_section() -> str:
     return HANDOFF.split("## Latest prior:", 1)[0]
 
 
-def test_handoff_latest_is_overnight_53_hygiene() -> None:
-    assert "## Latest: Overnight #53" in HANDOFF
+def test_handoff_prior_overnight_53_hygiene() -> None:
+    assert "## Latest prior: Overnight #53" in HANDOFF
     assert "PR #61" in HANDOFF
     assert "271d6ed" in HANDOFF
 
