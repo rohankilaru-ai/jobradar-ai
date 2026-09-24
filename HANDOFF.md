@@ -4,7 +4,21 @@
 **Local:** `/Users/rohankilaru/Resume Bot/job-agent-notifier/`  
 **Branch:** `main`
 
-## Latest: Overnight #41 — URL/Alert-Quality Harden — COMPLETE
+## Latest: Overnight #42 — Product-completion tests — COMPLETE
+
+**Goal:** End-to-end product acceptance / completion coverage proving MVP priorities from PROJECT_SPEC (fast path without Grok keys; bad/fixture URLs never notify; 14-day window with older still stored; priority tagging; health CLI smoke).
+
+**Completed:**
+- **Acceptance suite** `tests/test_overnight_42_product_completion.py` (11 tests) — scan→classify→dedupe→persist→notify without Grok; empty/fixture URL hard-block; 14-day window store-vs-alert; `[PRIORITY]` tagging; recall-first classify; fuzzy dedupe; health CLI smoke; CLI-import must not leak `.env`
+- **Tiny production glue:** move `load_dotenv` from import-time into `cli.main()` / `_load_env()`; honor `JOBRADAR_SKIP_DOTENV=1` so tests calling `main()` do not re-apply local `.env` (which had `JOBRADAR_NOTIFY_WINDOW_DAYS=3` and live Discord/Notion keys); `cmd_validate_scan` save/restores `JOBRADAR_LINK_PROBE`
+- **conftest:** autouse sets `JOBRADAR_SKIP_DOTENV=1` and clears `JOBRADAR_NOTIFY_WINDOW_DAYS` so tests use the code default (14) unless they override
+- **PR #23 left untouched** (Gmail pack). No live Discord/ntfy/Telegram sends this cycle.
+
+**Branch:** `overnight/42-product-completion-tests`
+
+**Next suggested:** Live scan validation docs (operator runbook / harness docs for validating a real scan safely). Do NOT re-suggest product-completion tests, URL/alert-quality harden, parser HTML/URL harden #28, classification recall, notify-window, classify-exclude, or scout-health (already landed).
+
+## Latest prior: Overnight #41 — URL/Alert-Quality Harden — COMPLETE
 
 **Goal:** Tighten empty/placeholder/`example.com` (and similar fixture/dummy) URL gates end-to-end so bad/fixture URLs never reach Discord/ntfy/Telegram — including the company-name↔host match bypass beyond overnight #8/#9/#28.
 
