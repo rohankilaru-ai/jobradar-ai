@@ -2,7 +2,7 @@
 
 This guide walks you through validating a live `scan --once` without guessing. Use this after initial setup, when tuning classification rules, or when verifying production readiness.
 
-**Last Updated:** Sep 2026 (Overnight #30) — Refreshed for current main after transient probe-fail defer (overnight #21) and alert pause/cap defer (PR #39) shipped.
+**Last Updated:** Sep 2026 (Overnight #43) — Cleaned conflict markers; refreshed for overnight #41 fixture/dummy URL gates, probe defer vs hard fail, 14-day notify window, classification recall (#39 TAM/TPM), scout health staleness (#37), and accurate `validate-scan` harness docs.
 
 ## Prerequisites
 
@@ -28,15 +28,17 @@ pip install -e ".[dev]"
 pytest -v
 ```
 
-All tests should pass (514+ tests). This validates:
-- Classification rules (include/exclude keywords)
+All tests should pass (**691+** on main tip after overnight #41; overnight #42/#43 add more). This validates:
+- Classification rules (include/exclude keywords, #39 TAM/TPM strong-signal recall)
 - Dedupe logic
 - Database operations
-- CLI command registration
+- CLI command registration (including `validate-scan`)
 - Notification logic (mocked, no live Discord)
 - Link probe and quality gates
+- Fixture/dummy URL gates (`is_fixture_or_dummy_url`, overnight #41)
 - URL validation (empty URLs, generic career pages, domain mismatch)
-- Notify window (posted_at vs first_seen_at)
+- Notify window (posted_at vs first_seen_at; canonical **14-day** default)
+- Scout health age/staleness (#37)
 
 ### 3. Comprehensive Validation Harness
 
@@ -44,32 +46,40 @@ All tests should pass (514+ tests). This validates:
 python -m jobradar validate-scan
 ```
 
-**New in overnight #13:** End-to-end validation of scan health without live notifications.
+End-to-end **offline** validation of scan health **without** live notifications or a network scan.
 
-This command runs a comprehensive validation covering:
+This command covers:
 - Health check (adapters configured or gracefully skipped)
-- Classification smoke test (known good/bad jobs)
-- Link probe test (empty URLs, example.com, placeholder detection)
-- Quality gate test (domain mismatch, generic career pages, HTML in company/title)
-- Notify window test (posted_at vs first_seen_at logic)
+- Classification smoke test (known good/bad jobs + TAM/TPM recall)
+- Placeholder / specificity gates (empty URLs, generic career pages)
+- **Fixture/dummy URL gates** (`is_fixture_or_dummy_url` → notify block *before* domain-match; probe short-circuit; expanded hosts; suffix-safe so `contest.com` ≠ `test.com`)
+- Quality gate test (domain mismatch, HTML in company/title)
+- Notify window test (posted_at vs first_seen_at; 14-day default; `REQUIRE_POSTED_AT=1`)
+- Probe classification (empty/placeholder/fixture → `"bad"` hard fail)
+- Defer logic smoke (`has_transient_probe_failure` with probe disabled → False)
 - Database operations (upsert idempotence, dedupe)
 
-**Output format:**
+**Does not:** fire Discord/ntfy/Telegram, call live Grok, or run `scan --once`.
+
+**Output format (representative):**
 ```
 JobRadar Scan Validation
-========================
+==================================================
 
 ✓ Environment health check passed
-✓ Classification logic validated (3/3 tests passed)
+✓ Classification logic validated (5/5 tests passed)
 ✓ Link probe gates validated (5/5 tests passed)
+✓ Fixture/dummy URL gates validated (10/10 tests passed)
 ✓ Quality gates validated (4/4 tests passed)
-✓ Notify window logic validated (3/3 tests passed)
+✓ Notify window logic validated (3/3 tests passed; default=14d)
+✓ Probe classification validated (3/3 tests passed)
+✓ Defer logic validated (1/1 tests passed)
 ✓ Database operations validated (2/2 tests passed)
 
 All validation checks passed! ✨
 ```
 
-If any check fails, the output shows which validation failed and why.
+If any check fails, the output shows which validation failed and why. The harness saves/restores `JOBRADAR_LINK_PROBE` so it does not permanently mutate process env.
 
 ### 4. Health Check
 
@@ -77,15 +87,34 @@ If any check fails, the output shows which validation failed and why.
 python -m jobradar health
 ```
 
-Expected output:
+Expected output (shape; counts vary):
 ```
 jobradar 0.1.0 ok
 db: data/jobradar.db (N jobs, M applications)
 notifiers: jsonl [+ discord] [+ ntfy] [+ telegram]
+alerts: enabled (unlimited, require_posted_at)
 notion: configured | skipped until keys set
 gmail: skipped until secrets/gmail-client.json
 grok webhooks: configured | skipped until keys set
+director: configured | skipped until keys set
+
+Runtime gates:
+  notify window: 14 days
+  link probe: enabled
+  alerts: enabled
+  require posted_at: yes
+  max alerts/scan: unlimited
+
+Scout health:
+  configured sources: N
+  staleness threshold: 3 days
+  last scan: ok=… cached=… error=…
+  Age/staleness summary:
+    fresh: … (updated within 3 days)
+    stale: … (not updated for >3 days)
 ```
+
+**Scout health (#37):** `health` surfaces source age and staleness (default threshold 3 days). Stale / never-fetched sources are listed so quiet adapters are visible without a manual spot-check.
 
 **Fast path guarantee**: Missing keys → skip gracefully. Never blocks alerts.
 
@@ -110,10 +139,9 @@ first scan seeded=N jobs (no alerts). next scan will notify only new listings.
 scan done fetched=X kept=Y new=N notified=0 alerted=0 probe_deferred=0
 ```
 
-**Subsequent runs**:
+**Subsequent runs** (includes per-source breakdown **and** probe defer count):
 ```
-<<<<<<< HEAD
-scan done fetched=X kept=Y new=Z notified=Z alerted=0
+scan done fetched=X kept=Y new=Z notified=Z alerted=0 probe_deferred=0
 sources: ok=4 not_modified=2 failed=0
   aprameyak-2027: 15 jobs
   dreamwork-2027: not_modified (304)
@@ -121,9 +149,6 @@ sources: ok=4 not_modified=2 failed=0
   simplify-summer-2027: 23 jobs
   simplify-offseason-2027: not_modified (304)
   vansh-summer-2027: 12 jobs
-=======
-scan done fetched=X kept=Y new=Z notified=Z alerted=0 probe_deferred=0
->>>>>>> 2481771 (overnight #30: refresh live scan validation docs/harness for main)
 ```
 
 **With deferrals** (alerts paused, cap hit, or transient probe failures):
@@ -140,11 +165,8 @@ Where:
 - `new` = listings not seen before
 - `notified` = new listings written to JSONL
 - `alerted` = new listings sent to Discord/ntfy/Telegram (0 when JOBRADAR_ALERTS_ENABLED=0)
-<<<<<<< HEAD
-- `sources` = per-source breakdown showing which sources succeeded (ok), returned 304 (not_modified), or failed (error)
-=======
 - `probe_deferred` = new listings with transient probe failures (timeout/5xx/429), deferred without marking was_notified
->>>>>>> 2481771 (overnight #30: refresh live scan validation docs/harness for main)
+- `sources` = per-source breakdown showing which sources succeeded (ok), returned 304 (not_modified), or failed (error)
 
 ### 6. Live Scan (with notifications)
 
@@ -161,7 +183,7 @@ python -m jobradar verify-links
 ```
 
 Validates URLs from SQLite. Check for:
-- No `example.com` or empty URLs leak through
+- No `example.com` / fixture hosts or empty URLs leak through
 - Company/URL domain mismatch caught
 - Only probed-good URLs reach notifications
 
@@ -199,20 +221,27 @@ JobRadar implements multiple layers of quality gates to ensure only valid, actio
 - `"TBD"`, `"N/A"`, `"null"`, `"undefined"`
 - Missing `http://` or `https://` scheme
 
-**Handled:** `is_placeholder_url()` returns True → blocked.
+**Handled:** `is_placeholder_url()` / empty sanitize → blocked.
 
-### Gate 3: Test/Example URLs
+### Gate 3: Fixture / Dummy / Local URLs (Overnight #41)
 
-**Block:** Jobs with test fixture URLs.
+**Block:** Jobs with test fixture, dummy, or local hosts — **before** domain-match / specificity checks.
 
-**Why:** Test data should never reach production notifications.
+**Why:** Test data and placeholder hosts must never reach production notifications, even when the company name loosely matches the host (e.g. company=`Test` + `test.com`, company=`Example` + `example.net`).
 
-**Examples:**
-- `example.com`, `example.org`
-- `localhost`, `127.0.0.1`
-- `test.com`
+**Shared helper:** `is_fixture_or_dummy_url()` in `models.py` (suffix-safe so `contest.com` ≠ `test.com`).
 
-**Handled:** `job_notify_block_reason()` checks for `example.com` / `example.org`.
+**Expanded bad hosts include:**
+- `example.com`, `example.org`, `example.net`
+- `test.com`, `test.org`
+- `localhost`, `127.0.0.1`, `0.0.0.0`
+- `about:blank`, `placeholder.com`
+
+**Notify path:** `job_notify_block_reason` returns `fixture/dummy URL: …` **before** domain-match / generic-career checks.
+
+**Probe path:** `probe_url` **short-circuits** fixture hosts locally (no HTTP) → `"bad"`. (Some fixture hosts like `example.com` can return HTTP 200.)
+
+**Ingest path:** Parser still strips fixtures via `is_bad_url` → empty URL.
 
 ### Gate 4: Generic Career Pages (Not Specific Job Postings)
 
@@ -223,14 +252,12 @@ JobRadar implements multiple layers of quality gates to ensure only valid, actio
 **Examples (Blocked):**
 - `https://stripe.com/careers`
 - `https://meta.com/jobs`
-- `https://example.com/careers/search?q=intern`
 - `https://greenhouse.io/jobs/results`
 
 **Examples (Allowed):**
 - `https://stripe.com/careers/job/1234` — specific job ID
 - `https://boards.greenhouse.io/stripe/jobs/1234?gh_jid=1234` — Greenhouse job
 - `https://jobs.lever.co/stripe/uuid` — Lever job
-- `https://meta.com/careers/position/123` — specific position
 
 **Handled:** `is_specific_job_url()` analyzes path and query parameters.
 
@@ -247,63 +274,52 @@ JobRadar implements multiple layers of quality gates to ensure only valid, actio
 
 **Block:** Jobs where URL domain doesn't match company name.
 
-**Why:** Cross-wired data indicates parser error or aggregator URLs (e.g., job listed as "Google" with a "Microsoft" URL).
+**Why:** Cross-wired data indicates parser error or aggregator URLs.
 
 **Examples (Blocked):**
 - Company: `"Google"` + URL: `https://microsoft.com/jobs/123`
-- Company: `"Stripe"` + URL: `https://example.com/job`
 
 **Examples (Allowed):**
 - Company: `"Google"` + URL: `https://careers.google.com/jobs/123`
-- Company: `"Meta"` + URL: `https://metacareers.com/jobs/123` — domain variant OK
-- Company: `"Jane Street"` + URL: `https://janestreet.com/apply` — slug match
-- Company: `"OpenAI"` + URL: `https://boards.greenhouse.io/openai/jobs/123` — recruiting platform + company in path
+- Company: `"Meta"` + URL: `https://metacareers.com/jobs/123`
+- Company: `"OpenAI"` + URL: `https://boards.greenhouse.io/openai/jobs/123`
 
-**Recruiting Platform Allowlist:**
-When URL is on a known recruiting platform (Greenhouse, Lever, Ashby, Workday, etc.), company slug MUST appear in the URL path. Otherwise, domain must match company slug.
+**Handled:** `domain_matches_company()` returns False → blocked. (Runs **after** fixture/dummy gate.)
 
-**Company Slug Normalization:**
-- Remove suffixes: `Inc`, `Corp`, `LLC`, `Ltd`, `Company`, `Co`
-- Remove non-alphanumeric: `Jane Street` → `janestreet`
-- Match is case-insensitive
+### Gate 6: URL Probe (HTTP HEAD/GET) — Hard Fail vs Defer
 
-**Handled:** `domain_matches_company()` returns False → blocked.
+**Block (Hard):** Jobs where URL returns 404 or other 4xx (except 429).
 
-### Gate 6: URL Probe (HTTP HEAD/GET)
-
-**Block (Hard):** Jobs where URL returns 404 or other 4xx (except 429) — permanent block, marks was_notified.
-
-**Defer (Transient):** Jobs where URL returns 5xx, 429, timeout, or connection error — defer without marking was_notified, allows retry on next scan.
-
-**Why:** Dead links (404) waste user time; transient failures (timeout/5xx) may recover.
+**Defer (Transient):** Jobs where URL returns 5xx, 429, timeout, or connection error — defer without marking was_notified, allows retry on next scan (`probe_deferred` counter).
 
 **Probe Logic:**
-1. Try HTTP HEAD first (faster)
-2. Classify response:
+1. Fixture/dummy / placeholder → local short-circuit `"bad"` (no HTTP)
+2. Try HTTP HEAD first (faster)
+3. Classify response:
    - **2xx/3xx** → `"good"` (alert)
-   - **4xx except 429** → `"bad"` (hard block, permanent)
+   - **4xx except 429** → `"bad"` (hard block)
    - **5xx, 429** → `"error"` (transient, defer)
    - **Timeout/connection error** → `"error"` (transient, defer)
-3. Accept 403 for job-shaped URLs (`/job`, `/career`, `/position`, `/apply`, `/intern`) — some ATSs block HEAD but allow browser GET
+4. Accept 403 for job-shaped URLs (`/job`, `/career`, `/position`, `/apply`, `/intern`) — some ATSs block HEAD but allow browser GET
 
 **Transient vs Hard Failures:**
 - **Transient** (5xx, 429, timeout, connection errors): Write JSONL, skip live alerts, do NOT mark `was_notified` → later scans can retry
-- **Hard** (404, 4xx except 429, empty URL, example.com): Permanent block, no Discord/ntfy/Telegram/Notion
+- **Hard** (404, 4xx except 429, empty URL, fixture/dummy hosts): Permanent block, no Discord/ntfy/Telegram/Notion
 
 **Controlled by:** `JOBRADAR_LINK_PROBE` env var (default `1` in production; `0` in pytest).
 
 **Timeout:** 8 seconds per URL (3s for notify-path probe).
 
-**Handled:** `probe_url()` returns `"good"`, `"bad"`, or `"error"`; `has_transient_probe_failure()` checks for defer condition.
+**Handled:** `probe_url()` / `detailed_probe_url()` return `"good"`, `"bad"`, or `"error"`; `has_transient_probe_failure()` checks for defer condition.
 
 ### Gate 7: Notify Window (Recency)
 
-**Block:** Jobs outside the notify window (default 14 days).
+**Block:** Jobs outside the notify window (default **14 days**).
 
 **Why:** Avoid alerting about weeks-old postings that JobRadar just discovered.
 
 **Prefer `posted_at` over `first_seen_at`:**
-- `posted_at`: When the company/aggregator published the listing (parser extracts if available)
+- `posted_at`: When the company/aggregator published the listing
 - `first_seen_at`: When JobRadar first saw the listing
 
 **Default behavior (`JOBRADAR_REQUIRE_POSTED_AT=1`):**
@@ -313,9 +329,19 @@ When URL is on a known recruiting platform (Greenhouse, Lever, Ashby, Workday, e
 **Legacy fallback (`JOBRADAR_REQUIRE_POSTED_AT=0`):**
 - If `posted_at` is missing, fall back to `first_seen_at`
 
-**Window tuning:** Set `JOBRADAR_NOTIFY_WINDOW_DAYS=N` (default 14).
+**Window tuning:** Set `JOBRADAR_NOTIFY_WINDOW_DAYS=N` (canonical default **14**). Local `.env` may override (e.g. `3`) — tests clear that override via `JOBRADAR_SKIP_DOTENV` / conftest.
 
 **Handled:** `within_notify_window()` returns False → blocked.
+
+## Classification Recall (Overnight #39)
+
+Recall-first classification keeps borderline technical roles that would otherwise match exclude-list patterns:
+
+- **Technical Account Manager (TAM)** — kept via `strong_signals`
+- **Technical Product Manager (TPM)** — kept via `strong_signals`
+- Unknown / ambiguous roles → keep rather than drop
+
+Clear non-technical roles (nursing, tax analyst, HR, marketing, real estate, …) stay excluded.
 
 ## Deferral Categories (Overnight #21, PR #39)
 
@@ -331,8 +357,6 @@ JobRadar tracks three types of deferrals that allow jobs to retry on later scans
 - **Do NOT mark was_notified**
 - Next scan will retry probe and alert if URL recovers
 
-**Example:** Job URL times out during probe → deferred, not permanently silenced.
-
 ### 2. `alerts_paused` — Alerts Disabled
 
 **When:** `JOBRADAR_ALERTS_ENABLED=0` (dry-run mode).
@@ -343,21 +367,18 @@ JobRadar tracks three types of deferrals that allow jobs to retry on later scans
 - **Do NOT mark was_notified**
 - Next scan with alerts enabled will alert these jobs
 
-**Example:** Testing classification changes without spamming channels.
-
 ### 3. `cap_deferred` — Alert Cap Overflow
 
-**When:** More new jobs than `JOBRADAR_MAX_ALERTS_PER_SCAN` cap.
+**When:** More new jobs than `JOBRADAR_MAX_ALERTS_PER_SCAN` cap (when cap > 0).
 
 **Behavior:**
-- Alert cap jobs (priority companies first)
+- Alert up to N jobs (**priority companies first**, then Fortune 500, then others)
 - Overflow jobs write JSONL but skip live alerts
 - **Do NOT mark was_notified**
 - Next scan can alert overflow jobs if within cap
+- `stats.cap_deferred` counts overflow; `stats.alert_cap_hit` is True when cap reached
 
-**Example:** 50 new jobs discovered, cap=15 → alert 15 (priority first), defer 35.
-
-**Key principle:** Only hard failures (404, empty URL, domain mismatch, old posted_at) permanently block. Transient/operational issues defer without marking was_notified.
+**Key principle:** Only hard failures (404, empty URL, fixture/dummy, domain mismatch, old posted_at) permanently block. Transient/operational issues defer without marking was_notified.
 
 ## All Gates Summary
 
@@ -365,18 +386,16 @@ JobRadar tracks three types of deferrals that allow jobs to retry on later scans
 |------|--------|----------|----------|
 | HTML tags | Company/title fields | `_HTML_TAG.search()` | Hard block |
 | Empty/placeholder URLs | `""`, `TBD`, `N/A`, no scheme | `is_placeholder_url()` | Hard block |
-| Test URLs | `example.com`, `localhost` | Pattern match in `job_notify_block_reason()` | Hard block |
+| Fixture/dummy URLs | `example.*`, `test.*`, localhost, … | `is_fixture_or_dummy_url()` (before domain-match) | Hard block |
 | Generic career pages | `/careers`, `/jobs` without ID | `is_specific_job_url()` | Hard block |
 | Domain mismatch | Company vs URL domain | `domain_matches_company()` | Hard block |
-| URL probe (hard) | HTTP 404, 4xx except 429 | `probe_url()` → `"bad"` | Hard block |
+| URL probe (hard) | HTTP 404, 4xx except 429; fixture short-circuit | `probe_url()` → `"bad"` | Hard block |
 | URL probe (transient) | HTTP 5xx, 429, timeout, connection error | `probe_url()` → `"error"` | Defer (retry later) |
-| Notify window | `posted_at` or `first_seen_at` | `within_notify_window()` | Hard block |
+| Notify window | `posted_at` (default) / `first_seen_at` | `within_notify_window()` | Hard block |
 
 **Result:** Jobs passing all gates reach Discord/ntfy/Telegram. Transient probe failures defer without permanent block.
 
 ## Environment Variables (Validation Control)
-
-These env vars control scan behavior during validation and production:
 
 ### `JOBRADAR_ALERTS_ENABLED`
 
@@ -387,12 +406,7 @@ These env vars control scan behavior during validation and production:
 - Writes to SQLite and JSONL
 - **Skips Discord/ntfy/Telegram webhooks**
 - **Does NOT mark jobs as was_notified** (allows retry after re-enable)
-- Good for: validating classification, dedupe, and DB operations without spamming channels
 
-**Deferred jobs:**
-When alerts paused, stats show `alerts_paused=N` for jobs written but not marked as notified.
-
-**Usage:**
 ```bash
 JOBRADAR_ALERTS_ENABLED=0 python -m jobradar scan --once
 ```
@@ -402,47 +416,34 @@ JOBRADAR_ALERTS_ENABLED=0 python -m jobradar scan --once
 **Default:** `1` (probe ON in production)
 
 **Set to `0` to bypass URL probing:**
-- Main quality gates still apply (domain mismatch, generic career pages, empty URLs)
+- Main quality gates still apply (fixture/dummy, domain mismatch, generic career pages, empty URLs)
 - HTTP HEAD/GET probe skipped
 - Useful for: offline testing, CI with no network access
 
-**Usage:**
 ```bash
 JOBRADAR_LINK_PROBE=0 pytest
 ```
 
-**Note:** Tests automatically set `JOBRADAR_LINK_PROBE=0` unless explicitly testing probe logic.
+Tests automatically set `JOBRADAR_LINK_PROBE=0` unless explicitly testing probe logic.
 
 ### `JOBRADAR_REQUIRE_POSTED_AT`
 
 **Default:** `1` (require posted_at)
 
-**Behavior:**
 - `1`: Block jobs missing `posted_at` (do not fall back to `first_seen_at`)
 - `0`: If `posted_at` missing, fall back to `first_seen_at`
 
-**Why default is `1`:**
-Prevents notification floods when JobRadar discovers bulk aggregator data (e.g., Simplify's 2000+ historical listings all marked as "first seen today").
-
-**When to set `0`:**
-If you're OK with "first seen today" semantics and want to catch all new discoveries.
-
 ### `JOBRADAR_NOTIFY_WINDOW_DAYS`
 
-**Default:** `14`
+**Default:** `14` (canonical)
 
 **Sets the recency window for notifications (days).**
 
-**Examples:**
+Examples:
 - `14` — Only notify about jobs posted in the last 14 days (default)
 - `7` — Notify about jobs posted in the last week
 - `3` — Only notify about jobs posted in the last 3 days
 - `-1` — Notify about all jobs (no recency filter)
-
-**Usage:**
-```bash
-JOBRADAR_NOTIFY_WINDOW_DAYS=7 python -m jobradar scan --once
-```
 
 ### `JOBRADAR_MAX_ALERTS_PER_SCAN`
 
@@ -450,20 +451,12 @@ JOBRADAR_NOTIFY_WINDOW_DAYS=7 python -m jobradar scan --once
 
 **Caps live Discord/ntfy/Telegram alerts per scan run (optional).**
 
-**Why:**
-Optional spam control if a bulk source update dumps hundreds of new jobs at once.
-
 **Behavior:**
 - JSONL writes are unlimited (all new jobs recorded)
-<<<<<<< HEAD
-- When cap > 0: Discord/ntfy/Telegram stop after N alerts (priority-first ordering)
+- When cap > 0: Discord/ntfy/Telegram stop after N alerts (**priority-first** ordering)
 - When cap = 0 (default): No artificial limit, all qualifying jobs alert
-- Capped jobs are deferred (not permanently silenced) so later scans can alert them
-=======
-- Discord/ntfy/Telegram stop after N alerts
-- Jobs past cap **do NOT mark was_notified** (allows retry on next scan)
-- Priority companies alert first, then others (priority-first ordering from overnight #19)
->>>>>>> 2481771 (overnight #30: refresh live scan validation docs/harness for main)
+- Capped jobs are deferred (`cap_deferred`) — not permanently silenced — so later scans can alert them
+- Jobs past cap **do NOT mark was_notified**
 - `stats.alert_cap_hit` is True if cap was reached
 - `stats.cap_deferred` shows count of jobs deferred due to cap
 
@@ -472,20 +465,21 @@ Optional spam control if a bulk source update dumps hundreds of new jobs at once
 - `15` — Max 15 live alerts per scan (priority first)
 - `5` — Max 5 alerts (very conservative)
 
-**Usage:**
 ```bash
 JOBRADAR_MAX_ALERTS_PER_SCAN=5 python -m jobradar scan --once
 ```
+
+### `JOBRADAR_SKIP_DOTENV`
+
+**Set by pytest conftest** (`=1`) so `cli.main()` does not re-apply local `.env` over test `delenv`.
+
+**Production CLI:** unset / `0` — `main()` loads `.env` normally.
 
 ### `PYTEST_CURRENT_TEST`
 
 **Set automatically by pytest.**
 
-**Safety guard:**
 When set, `send_discord()`, `send_ntfy()`, and `send_telegram()` are blocked (return `"skipped"`).
-
-**Why:**
-Prevents test suite from accidentally firing live webhooks even if webhook URLs are configured in `.env`.
 
 **Never set this manually!**
 
@@ -494,13 +488,12 @@ Prevents test suite from accidentally firing live webhooks even if webhook URLs 
 ### Good Classification
 
 **Kept** (recall-first):
-
-**Kept** (recall-first):
 - "Software Engineer Intern"
 - "Data Science Intern"
 - "Machine Learning Engineer"
 - "SWE Intern"
-- "Fullstack Developer Intern"
+- "Technical Account Manager Intern" (TAM — #39)
+- "Technical Product Manager Intern" (TPM — #39)
 - "AI Research Intern"
 
 **Excluded** (clear negatives):
@@ -519,24 +512,22 @@ Prevents test suite from accidentally firing live webhooks even if webhook URLs 
 
 **When to tune EXCLUDE** in `src/jobradar/classify.py`:
 - Only if **clearly wrong** jobs consistently slip through
-- Examples: "Dental Assistant Intern", "Real Estate Intern"
-- Add to `EXCLUDE` tuple with specific keywords
 - **Recall-first principle**: false positives OK, missed jobs NOT OK
 
 ### Bad URLs / Domain Mismatch
 
 **Never notified** (gates block):
-- `example.com` or empty URL
+- `example.com` / other fixture hosts or empty URL
 - Company "Google" with URL `microsoft.com`
-- URL returns 404 or timeout
+- URL returns 404 (hard) or transient probe failure (defer, no Discord)
 - URL domain doesn't match company
 
 **Safe to notify**:
 - Company "Google" with URL `careers.google.com`
 - Company "Meta" with URL `metacareers.com`
-- URL returns 200 and HTML contains company indicators
+- URL returns 200 and passes all gates
 
-**Note**: Old SQLite rows may have cross-wired company/URL until a fresh scan rewrites. Mismatch/probe gates block Discord regardless.
+**Note**: Old SQLite rows may have cross-wired company/URL until a fresh scan rewrites. Mismatch/probe/fixture gates block Discord regardless.
 
 ## Discord / ntfy Confirmation
 
@@ -558,35 +549,6 @@ Building AGI safely. Seeking interns for core infrastructure.
 
 **No [PRIORITY] tag** for non-priority companies.
 
-## Classification Tuning Guide
-
-### When NOT to Tune
-
-- Unknown roles (keep them)
-- Borderline technical roles (keep them)
-- One-off false positives (acceptable)
-
-### When to Tune
-
-Only when **repeated clear negatives** slip through:
-
-1. Identify the bad keyword: "dental", "real estate", "nursing"
-2. Check if already in `EXCLUDE` tuple in `src/jobradar/classify.py`
-3. If missing, add it:
-
-```python
-EXCLUDE = (
-    "nursing", "nurse", "tax intern", "tax analyst", "accounting intern",
-    "pharmacist", "dental", "medical assistant", "registered nurse",
-    "social work", "hr intern", "human resources", "recruiter intern",
-    "marketing intern", "sales intern", "real estate",
-    "your-new-keyword",  # add here
-)
-```
-
-4. Test: `pytest tests/test_classify_dedupe_notify.py -v`
-5. Validate: `python -m jobradar scan --once` (check `kept` count)
-
 ## Standing Rules
 
 ### Never Do
@@ -602,7 +564,7 @@ EXCLUDE = (
 - Run `pytest` before committing classification changes
 - Let empty API keys skip gracefully (no exceptions)
 - Prefer recall over precision (false positives OK)
-- Validate URLs before Discord (probe gates)
+- Validate URLs before Discord (fixture + probe gates)
 
 ## Troubleshooting
 
@@ -644,9 +606,9 @@ python -m jobradar scan --once --alert-all
 
 **Cause**: SQLite may have rows from before URL verification gates.
 
-**Fix**: Fresh scan rewrites entries. Gates block Discord for mismatches.
+**Fix**: Fresh scan rewrites entries. Gates block Discord for mismatches/fixtures.
 
-**Nuclear option**:
+**Nuclear option:**
 ```bash
 rm data/jobradar.db
 python -m jobradar scan --once
@@ -657,13 +619,14 @@ First scan seeds without alerts. Second scan notifies.
 ## Success Criteria
 
 ✅ `pytest` passes (all green)
-✅ `health` shows all adapters configured or gracefully skipped
+✅ `python -m jobradar validate-scan` passes (offline harness)
+✅ `health` shows all adapters configured or gracefully skipped (incl. scout staleness)
 ✅ `scan --once` completes without exceptions
 ✅ `kept` count matches expected (no mass exclusion)
 ✅ `notified` count reasonable (first run: 0, later: N new jobs)
 ✅ Discord/ntfy/Telegram receive only valid URLs
-✅ No `example.com` or empty URLs in notifications
-✅ Classification matches recall-first principle
+✅ No fixture/dummy hosts or empty URLs in notifications
+✅ Classification matches recall-first principle (incl. TAM/TPM)
 
 ## Next Steps
 

@@ -475,7 +475,13 @@ def cmd_quarantine_bad_urls(args: argparse.Namespace) -> int:
 
 
 def cmd_validate_scan(_: argparse.Namespace) -> int:
-    """Comprehensive scan validation harness (non-destructive)."""
+    """Comprehensive scan validation harness (non-destructive).
+
+    Offline checks for health, classification (incl. TAM/TPM recall),
+    placeholder + fixture/dummy URL gates (overnight #41), quality gates,
+    notify window, probe defer classification, and DB upsert idempotence.
+    Does not send Discord/ntfy/Telegram and does not run a live scan.
+    """
     print("JobRadar Scan Validation")
     print("=" * 50)
     print()
@@ -487,6 +493,13 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
 
     passed = 0
     failed = 0
+
+    def _finish(code: int) -> int:
+        if _prev_probe is None:
+            os.environ.pop("JOBRADAR_LINK_PROBE", None)
+        else:
+            os.environ["JOBRADAR_LINK_PROBE"] = _prev_probe
+        return code
 
     # Test 1: Health check
     try:
@@ -506,14 +519,16 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
 
     print()
 
-    # Test 2: Classification logic
+    # Test 2: Classification logic (recall-first + overnight #39 TAM/TPM)
     from jobradar.classify import should_keep
-    from jobradar.models import JobRecord
+    from jobradar.models import JobRecord, is_fixture_or_dummy_url
 
     classification_tests = [
-        (JobRecord(company="OpenAI", title="Software Engineer Intern", url="https://openai.com/1"), True, "SWE intern"),
-        (JobRecord(company="Hospital", title="Nursing Intern", url="https://hosp.com/1"), False, "nursing intern"),
-        (JobRecord(company="Startup", title="Intern", url="https://startup.com/1"), True, "unknown role (recall-first)"),
+        (JobRecord(company="OpenAI", title="Software Engineer Intern", url="https://openai.com/jobs/1"), True, "SWE intern"),
+        (JobRecord(company="Hospital", title="Nursing Intern", url="https://hosp.com/jobs/1"), False, "nursing intern"),
+        (JobRecord(company="Startup", title="Intern", url="https://startup.com/jobs/1"), True, "unknown role (recall-first)"),
+        (JobRecord(company="SaaS Co", title="Technical Account Manager Intern", url="https://saas.com/jobs/1"), True, "TAM recall (#39)"),
+        (JobRecord(company="AI Co", title="Technical Product Manager Intern", url="https://ai.co/jobs/1"), True, "TPM recall (#39)"),
     ]
     classification_passed = 0
     classification_failed = 0
@@ -534,8 +549,8 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
 
     print()
 
-    # Test 3: Link probe gates
-    from jobradar.notify import is_placeholder_url, is_specific_job_url, domain_matches_company
+    # Test 3: Link / placeholder / specificity gates
+    from jobradar.notify import is_placeholder_url, is_specific_job_url
 
     link_tests = [
         ("is_placeholder_url", "", True, "empty string"),
@@ -546,13 +561,11 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
     ]
     link_passed = 0
     link_failed = 0
-    for func_name, *test_args in link_tests:
-        arg, expected, desc = test_args
+    for func_name, arg, expected, desc in link_tests:
         if func_name == "is_placeholder_url":
             result = is_placeholder_url(arg)
-        elif func_name == "is_specific_job_url":
+        else:
             result = is_specific_job_url(arg)
-        
         if result == expected:
             link_passed += 1
         else:
@@ -568,14 +581,66 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
 
     print()
 
-    # Test 4: Quality gates (domain mismatch, HTML tags) — probe disabled for validation
+    # Test 3b: Fixture/dummy URL gates (overnight #41) — before domain-match
     from jobradar.notify import job_notify_block_reason
+    from jobradar.link_probe import probe_url
 
+    fixture_cases = [
+        ("https://example.com/job/1", "example.com"),
+        ("https://example.org/careers/job/1", "example.org"),
+        ("https://example.net/jobs/1", "example.net"),
+        ("https://test.com/jobs/1", "test.com"),
+        ("https://test.org/jobs/1", "test.org"),
+        ("http://localhost:3000/jobs/1", "localhost"),
+        ("http://127.0.0.1/jobs/1", "127.0.0.1"),
+        ("http://0.0.0.0/jobs/1", "0.0.0.0"),
+        ("https://placeholder.com/jobs/1", "placeholder.com"),
+    ]
+    fixture_passed = 0
+    fixture_failed = 0
+    for url, host in fixture_cases:
+        if not is_fixture_or_dummy_url(url):
+            fixture_failed += 1
+            print(f"  ✗ is_fixture_or_dummy_url missed {host}")
+            continue
+        # company name matching host must NOT bypass the notify block
+        company = host.split(".")[0].title()
+        job = JobRecord(company=company, title="SWE Intern", url=url, sources=["test"])
+        reason = job_notify_block_reason(job)
+        if not reason or "fixture/dummy" not in reason:
+            fixture_failed += 1
+            print(f"  ✗ notify block for {host}: expected fixture/dummy, got {reason!r}")
+            continue
+        # probe short-circuit (no HTTP) → "bad"
+        probed = probe_url(url)
+        if probed != "bad":
+            fixture_failed += 1
+            print(f"  ✗ probe_url short-circuit for {host}: expected 'bad', got {probed!r}")
+            continue
+        fixture_passed += 1
+
+    # Suffix-safe: contest.com must NOT be treated as test.com
+    if is_fixture_or_dummy_url("https://contest.com/jobs/1"):
+        fixture_failed += 1
+        print("  ✗ contest.com falsely flagged as fixture (suffix-safety regression)")
+    else:
+        fixture_passed += 1
+
+    if fixture_failed == 0:
+        print(f"✓ Fixture/dummy URL gates validated ({fixture_passed}/{len(fixture_cases) + 1} tests passed)")
+        passed += 1
+    else:
+        print(f"✗ Fixture/dummy URL gates failed ({fixture_failed} failures)")
+        failed += 1
+
+    print()
+
+    # Test 4: Quality gates (domain mismatch, HTML tags) — probe disabled
     quality_tests = [
-        (JobRecord(company="Google", title="SWE", url="https://google.com/jobs/1"), None, "valid job (probe disabled)"),
+        (JobRecord(company="Google", title="SWE", url="https://careers.google.com/jobs/1"), None, "valid job (probe disabled)"),
         (JobRecord(company="Google", title="SWE", url="https://microsoft.com/jobs/1"), "domain mismatch", "cross-wired company/URL"),
-        (JobRecord(company="<div>Stripe</div>", title="SWE", url="https://stripe.com/1"), "HTML in company", "HTML in company"),
-        (JobRecord(company="Stripe", title="SWE<br>Intern", url="https://stripe.com/1"), "HTML in title", "HTML in title"),
+        (JobRecord(company="<div>Stripe</div>", title="SWE", url="https://stripe.com/jobs/1"), "HTML in company", "HTML in company"),
+        (JobRecord(company="Stripe", title="SWE<br>Intern", url="https://stripe.com/jobs/1"), "HTML in title", "HTML in title"),
     ]
     quality_passed = 0
     quality_failed = 0
@@ -603,18 +668,25 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
 
     print()
 
-    # Test 5: Notify window logic
-    from jobradar.notify import within_notify_window
+    # Test 5: Notify window logic (canonical 14-day default)
+    from jobradar.notify import within_notify_window, NOTIFY_WINDOW_DAYS
     from datetime import datetime, timedelta, timezone
 
     now = datetime.now(timezone.utc)
+    # Ensure code default for this harness run
+    os.environ.pop("JOBRADAR_NOTIFY_WINDOW_DAYS", None)
+    os.environ["JOBRADAR_REQUIRE_POSTED_AT"] = "1"
+
     notify_tests = [
-        (JobRecord(company="A", title="X", url="https://a.com/1", posted_at=(now - timedelta(days=1)).date().isoformat()), True, "posted 1 day ago"),
-        (JobRecord(company="B", title="Y", url="https://b.com/2", posted_at=(now - timedelta(days=20)).date().isoformat()), False, "posted 20 days ago (outside 14-day window)"),
-        (JobRecord(company="C", title="Z", url="https://c.com/3"), False, "no posted_at (REQUIRE_POSTED_AT=1 default)"),
+        (JobRecord(company="A", title="X", url="https://a.com/jobs/1", posted_at=(now - timedelta(days=1)).date().isoformat()), True, "posted 1 day ago"),
+        (JobRecord(company="B", title="Y", url="https://b.com/jobs/2", posted_at=(now - timedelta(days=20)).date().isoformat()), False, "posted 20 days ago (outside 14-day window)"),
+        (JobRecord(company="C", title="Z", url="https://c.com/jobs/3"), False, "no posted_at (REQUIRE_POSTED_AT=1 default)"),
     ]
     notify_passed = 0
     notify_failed = 0
+    if NOTIFY_WINDOW_DAYS != 14:
+        notify_failed += 1
+        print(f"  ✗ NOTIFY_WINDOW_DAYS constant drift: expected 14, got {NOTIFY_WINDOW_DAYS}")
     for job, expected, desc in notify_tests:
         result = within_notify_window(job, now=now)
         if result == expected:
@@ -624,65 +696,46 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
             print(f"  ✗ Notify window failed for {desc}: expected={expected}, got={result}")
 
     if notify_failed == 0:
-        print(f"✓ Notify window logic validated ({notify_passed}/{len(notify_tests)} tests passed)")
+        print(f"✓ Notify window logic validated ({notify_passed}/{len(notify_tests)} tests passed; default={NOTIFY_WINDOW_DAYS}d)")
         passed += 1
     else:
-        print(f"✗ Notify window logic failed ({notify_failed}/{len(notify_tests)} tests failed)")
+        print(f"✗ Notify window logic failed ({notify_failed} failures)")
         failed += 1
 
     print()
 
-    # Test 6: Probe classification (transient vs hard)
-    from jobradar.link_probe import probe_url
-    
-    probe_tests = [
-        # No actual HTTP calls needed - just test the classification logic exists
-        ("probe_url function exists", True, "probe_url callable"),
-    ]
+    # Test 6: Probe classification (hard vs transient; fixture short-circuit)
     probe_passed = 0
     probe_failed = 0
-    
     try:
-        # Verify probe_url returns good/bad/error (not boolean)
-        # Test with placeholder URL (should be "bad")
-        result = probe_url("")
-        if result == "bad":
-            probe_passed += 1
-        else:
-            probe_failed += 1
-            print(f"  ✗ probe_url empty string: expected 'bad', got '{result}'")
-        
-        # Test placeholder detection
-        result = probe_url("TBD")
-        if result == "bad":
-            probe_passed += 1
-        else:
-            probe_failed += 1
-            print(f"  ✗ probe_url TBD: expected 'bad', got '{result}'")
+        for raw, expect in (("", "bad"), ("TBD", "bad"), ("https://example.com/x", "bad")):
+            result = probe_url(raw)
+            if result == expect:
+                probe_passed += 1
+            else:
+                probe_failed += 1
+                print(f"  ✗ probe_url({raw!r}): expected {expect!r}, got {result!r}")
     except Exception as exc:
-        probe_failed += 2
+        probe_failed += 1
         print(f"  ✗ Probe classification failed: {exc}")
-    
+
     if probe_failed == 0:
-        print(f"✓ Probe classification validated ({probe_passed}/2 tests passed)")
+        print(f"✓ Probe classification validated ({probe_passed}/3 tests passed)")
         passed += 1
     else:
-        print(f"✗ Probe classification failed ({probe_failed}/2 tests failed)")
+        print(f"✗ Probe classification failed ({probe_failed} failures)")
         failed += 1
-    
+
     print()
-    
-    # Test 7: Defer stats tracking
+
+    # Test 7: Defer stats tracking (probe disabled → not transient)
     from jobradar.notify import has_transient_probe_failure
-    
+
     defer_tests_passed = 0
     defer_tests_failed = 0
-    
     try:
-        # Test has_transient_probe_failure exists and works with probe disabled
-        job = JobRecord(company="Test", title="SWE", url="https://test.com/1", sources=["test"])
+        job = JobRecord(company="Stripe", title="SWE", url="https://stripe.com/jobs/123", sources=["test"])
         result = has_transient_probe_failure(job)
-        # With probe disabled, should return False
         if result is False:
             defer_tests_passed += 1
         else:
@@ -691,41 +744,37 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
     except Exception as exc:
         defer_tests_failed += 1
         print(f"  ✗ Defer logic failed: {exc}")
-    
+
     if defer_tests_failed == 0:
         print(f"✓ Defer logic validated ({defer_tests_passed}/1 tests passed)")
         passed += 1
     else:
         print(f"✗ Defer logic failed ({defer_tests_failed}/1 tests failed)")
         failed += 1
-    
+
     print()
 
-    # Test 8: Database operations (use temporary DB file)
+    # Test 8: Database operations (temporary DB)
     db_tests_passed = 0
     db_tests_failed = 0
     import tempfile
     try:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=True) as tmp:
             db = Database(tmp.name)
-            
-            job = JobRecord(company="Meta", title="SWE", url="https://meta.com/1", sources=["test"])
+            job = JobRecord(company="Meta", title="SWE", url="https://metacareers.com/jobs/1", sources=["test"])
             stored1, is_new1 = db.upsert_job(job)
             stored2, is_new2 = db.upsert_job(job)
-            
             if is_new1 and not is_new2 and stored1.canonical_key == stored2.canonical_key:
                 db_tests_passed += 1
             else:
                 db_tests_failed += 1
-                print(f"  ✗ DB upsert idempotence failed")
-            
+                print("  ✗ DB upsert idempotence failed")
             count = db.count_jobs()
             if count == 1:
                 db_tests_passed += 1
             else:
                 db_tests_failed += 1
                 print(f"  ✗ DB count failed: expected 1, got {count}")
-            
             if db_tests_failed == 0:
                 print(f"✓ Database operations validated ({db_tests_passed}/2 tests passed)")
                 passed += 1
@@ -744,10 +793,10 @@ def cmd_validate_scan(_: argparse.Namespace) -> int:
         os.environ["JOBRADAR_LINK_PROBE"] = _prev_probe
     if failed == 0:
         print(f"All validation checks passed! ✨ ({passed}/{passed + failed})")
-        return 0
-    else:
-        print(f"Validation failed: {failed}/{passed + failed} checks failed")
-        return 1
+        return _finish(0)
+    print(f"Validation failed: {failed}/{passed + failed} checks failed")
+    return _finish(1)
+
 
 
 def build_parser() -> argparse.ArgumentParser:
