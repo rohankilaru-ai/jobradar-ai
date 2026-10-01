@@ -1,6 +1,7 @@
 """Test safe DB refresh: backup + schema recreation."""
 
 import shutil
+import sys
 import subprocess
 from pathlib import Path
 
@@ -64,7 +65,7 @@ def test_db_init_command(tmp_path, monkeypatch):
     db_path = tmp_path / "cli_test.db"
     monkeypatch.setenv("JOBRADAR_DB_PATH", str(db_path))
     result = subprocess.run(
-        ["python3", "-m", "jobradar", "db-init"],
+        [sys.executable, "-m", "jobradar", "db-init"],
         capture_output=True,
         text=True,
         check=True,
@@ -84,7 +85,7 @@ def test_db_refresh_command_creates_backup(tmp_path, monkeypatch):
     assert db.count_jobs() == 1
     
     result = subprocess.run(
-        ["python3", "-m", "jobradar", "db-refresh"],
+        [sys.executable, "-m", "jobradar", "db-refresh"],
         capture_output=True,
         text=True,
         check=True,
@@ -109,7 +110,7 @@ def test_db_refresh_command_no_db_fails(tmp_path, monkeypatch):
     db_path = tmp_path / "nonexistent.db"
     monkeypatch.setenv("JOBRADAR_DB_PATH", str(db_path))
     result = subprocess.run(
-        ["python3", "-m", "jobradar", "db-refresh"],
+        [sys.executable, "-m", "jobradar", "db-refresh"],
         capture_output=True,
         text=True,
     )
@@ -126,7 +127,7 @@ def test_db_refresh_command_no_backup_requires_confirmation(tmp_path, monkeypatc
     db.upsert_job(job)
     
     result = subprocess.run(
-        ["python3", "-m", "jobradar", "db-refresh", "--no-backup"],
+        [sys.executable, "-m", "jobradar", "db-refresh", "--no-backup"],
         input="NO\n",
         capture_output=True,
         text=True,
@@ -150,7 +151,7 @@ def test_db_refresh_preserves_backup_on_multiple_runs(tmp_path, monkeypatch):
     db.upsert_job(job1)
     
     subprocess.run(
-        ["python3", "-m", "jobradar", "db-refresh"],
+        [sys.executable, "-m", "jobradar", "db-refresh"],
         capture_output=True,
         text=True,
         check=True,
@@ -163,7 +164,7 @@ def test_db_refresh_preserves_backup_on_multiple_runs(tmp_path, monkeypatch):
     db2.upsert_job(job2)
     
     subprocess.run(
-        ["python3", "-m", "jobradar", "db-refresh"],
+        [sys.executable, "-m", "jobradar", "db-refresh"],
         capture_output=True,
         text=True,
         check=True,
