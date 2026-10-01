@@ -1,8 +1,4 @@
-"""Overnight #79: HANDOFF hygiene drift locks after PR #66 merge (loop resumed).
-
-After overnight #143, the #79 section lives under Latest prior; assertions
-still lock the historical #79 record and shared product-complete guards.
-"""
+"""Overnight #143: HANDOFF hygiene drift locks after PR #68 merge."""
 
 from pathlib import Path
 
@@ -14,16 +10,18 @@ def _latest_section() -> str:
     return HANDOFF.split("## Latest prior:", 1)[0]
 
 
-def test_handoff_prior_overnight_79_hygiene() -> None:
-    assert "## Latest prior: Overnight #79" in HANDOFF
-    assert "PR #66" in HANDOFF
-    assert "d688b6ee" in HANDOFF
-    assert "squash-merged" in HANDOFF.lower()
+def test_handoff_latest_is_overnight_143_hygiene() -> None:
+    latest = _latest_section()
+    assert "## Latest: Overnight #143" in HANDOFF
+    assert "PR #68" in latest
+    assert "ab949d9" in latest
+    assert "squash-merged" in latest.lower()
 
 
-def test_handoff_records_loop_resumed() -> None:
-    assert "2026-09-28" in HANDOFF
-    assert "resumed" in HANDOFF.lower()
+def test_handoff_records_mac_path_and_pytest() -> None:
+    latest = _latest_section()
+    assert "Mac" in latest
+    assert "739" in latest
 
 
 def test_handoff_next_is_rohan_ops_only() -> None:
