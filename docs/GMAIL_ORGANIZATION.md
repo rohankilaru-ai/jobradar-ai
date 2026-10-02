@@ -51,7 +51,20 @@ python -m jobradar gmail-sync --days 7
 # One-time backfill / cleanup (local OAuth)
 python -m jobradar gmail-reorganize --days 365
 python -m jobradar gmail-reorganize --days 365 --dry-run   # preview only
+
+# Mac convenience wrapper (reorganize + sync + weekly report)
+./scripts/local-inbox-notion-sync.sh 30
+./scripts/local-inbox-notion-sync.sh 30 --dry-run
 ```
+
+## Local Cursor agents (Mac)
+
+After a burst of new applications, run the local pack instead of waiting for cloud:
+
+- Task card: [`tasks/LOCAL_INBOX_NOTION_REFRESH.md`](../tasks/LOCAL_INBOX_NOTION_REFRESH.md)
+- Orchestrator + subagents: [`agents/local/`](../agents/local/)
+
+Paste `@agents/local/ORCHESTRATOR.md` into Cursor Desktop on your Mac (Gmail/Notion MCP optional; Python CLI preferred when OAuth is set).
 
 ## What cloud-scan does
 
