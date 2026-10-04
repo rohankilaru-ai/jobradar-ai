@@ -6,6 +6,7 @@ permanently blocked.
 """
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -407,7 +408,7 @@ def test_pipeline_tracks_probe_deferred_stat(tmp_path, monkeypatch, respx_mock):
         title="SWE Intern",
         url="https://boards.greenhouse.io/google/jobs/123",
         sources=["mock"],
-        posted_at="2026-09-20",  # Within window
+        posted_at=(datetime.now(timezone.utc) - timedelta(hours=6)).strftime("%Y-%m-%d"),  # Relative: stays inside 14-day notify window
     )
     
     # Mock timeout for the job URL

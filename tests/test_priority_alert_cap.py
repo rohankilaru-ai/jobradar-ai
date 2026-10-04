@@ -7,6 +7,7 @@ When JOBRADAR_MAX_ALERTS_PER_SCAN limits alerts, jobs should be ordered by tier:
 - Jobs past the cap still stored in DB (silent path)
 """
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -26,7 +27,7 @@ def make_job(company: str, title: str, url: str) -> JobRecord:
         location="Remote",
         url=url,
         sources=["test"],
-        posted_at="2026-09-20",  # Recent so it passes notify window
+        posted_at=(datetime.now(timezone.utc) - timedelta(hours=6)).strftime("%Y-%m-%d"),  # Relative: stays inside 14-day notify window
     )
 
 

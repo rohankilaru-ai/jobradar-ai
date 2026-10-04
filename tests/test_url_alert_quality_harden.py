@@ -8,6 +8,7 @@ those URLs. Probe must short-circuit fixtures without HTTP (example.com → 200)
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -71,7 +72,7 @@ def test_block_reason_fixture_even_when_company_matches_host(url, monkeypatch):
         location="SF",
         url=url,
         sources=["test"],
-        posted_at="2026-09-20",
+        posted_at=(datetime.now(timezone.utc) - timedelta(hours=6)).strftime("%Y-%m-%d"),
     )
     reason = job_notify_block_reason(job)
     assert reason is not None, f"expected block for {url} company={company}"
@@ -88,7 +89,7 @@ def test_should_send_alerts_false_for_fixtures(url, monkeypatch):
         location="SF",
         url=url,
         sources=["test"],
-        posted_at="2026-09-20",
+        posted_at=(datetime.now(timezone.utc) - timedelta(hours=6)).strftime("%Y-%m-%d"),
     )
     assert should_send_alerts(job) is False
 
@@ -106,7 +107,7 @@ def test_notifier_never_hits_live_channels_for_fixtures(url, tmp_path, monkeypat
         location="SF",
         url=url,
         sources=["test"],
-        posted_at="2026-09-20",
+        posted_at=(datetime.now(timezone.utc) - timedelta(hours=6)).strftime("%Y-%m-%d"),
     )
     with patch("jobradar.notify.send_discord") as d, patch(
         "jobradar.notify.send_ntfy"
@@ -157,7 +158,7 @@ def test_real_job_urls_still_pass_quality(monkeypatch):
         location="SF",
         url="https://stripe.com/careers/jobs/software-engineer-intern-123456",
         sources=["test"],
-        posted_at="2026-09-20",
+        posted_at=(datetime.now(timezone.utc) - timedelta(hours=6)).strftime("%Y-%m-%d"),
     )
     assert is_fixture_or_dummy_url(job.url) is False
     assert is_url_quality_good(job.url) is True
